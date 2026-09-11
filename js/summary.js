@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { clearActiveGame, saveSettings } from './persistence.js';
+import { clearActiveGame, exportProfile, saveGameHistory, saveRoster, saveSettings } from './persistence.js';
 import { avatarHtml, renderGameDayCheckboxes, renderTeamSetupRoster } from './roster.js';
 import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
@@ -329,8 +329,47 @@ export function confirmClearData() {
   openModal('clear-data-modal');
 }
 
+export function confirmStartNewSeason() {
+  openModal('new-season-modal');
+}
+
+export function backupBeforeNewSeason() {
+  exportProfile();
+}
+
+export function closeNewSeasonModal() {
+  closeModal('new-season-modal');
+}
+
 export function closeClearDataModal() {
   closeModal('clear-data-modal');
+}
+
+export function executeStartNewSeason() {
+  state.roster       = [];
+  state.players      = [];
+  state.nextId       = 1;
+  state.playerPhotos = {};
+  state.gameHistory  = [];
+  state.savedChecked = new Set();
+  state.gameDate     = '';
+  state.opponentName = '';
+  state.goals        = [];
+  state.scoreUs      = 0;
+  state.scoreThem    = 0;
+  state.gameFinalized = false;
+
+  saveRoster();
+  saveGameHistory();
+  saveSettings();
+  clearActiveGame();
+  localStorage.removeItem('playerPhotos');
+
+  document.getElementById('opponent-input').value = '';
+  closeNewSeasonModal();
+  renderTeamSetupRoster();
+  renderGameDayCheckboxes();
+  showScreen('team-setup-screen');
 }
 
 export function executeClearData() {

@@ -128,6 +128,7 @@
     </div>
 
     <div class="setup-danger-zone">
+      <button class="btn btn-gray" id="new-season-btn">&#128197; Start New Season</button>
       <button class="btn btn-red" id="clear-data-btn">&#9888; Clear All Data &amp; Reset</button>
     </div>
   </div>
@@ -143,6 +144,21 @@
     <div class="modal-btns">
       <button class="btn btn-red" id="clear-confirm-btn">Yes, Clear Everything</button>
       <button class="btn btn-gray" id="clear-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!--  START NEW SEASON MODAL                                     -->
+<!-- ============================================================ -->
+<div id="new-season-modal" class="overlay hidden">
+  <div class="modal">
+    <h3>&#128197; Start New Season?</h3>
+    <p style="color:var(--text-modal-p);margin-bottom:16px;">This will clear the current roster, player photos, saved game history, and any interrupted game from this browser so you can enter a fresh roster. Your team name and game settings will stay in place.<br><br>Download Archive only saves a JSON file for your records. It does not restore, import, or mix last season into the new one.</p>
+    <div class="modal-btns">
+      <button class="btn btn-blue" id="new-season-backup-btn">Download Archive</button>
+      <button class="btn btn-red" id="new-season-confirm-btn">Start Fresh</button>
+      <button class="btn btn-gray" id="new-season-cancel-btn">Cancel</button>
     </div>
   </div>
 </div>

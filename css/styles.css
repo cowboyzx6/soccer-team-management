@@ -372,6 +372,8 @@
       margin-top: 32px;
       border-top: 1px solid var(--border);
       padding-top: 16px;
+      display: grid;
+      gap: 10px;
     }
 
     .setup-danger-zone .btn {

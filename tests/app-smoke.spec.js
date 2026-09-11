@@ -105,6 +105,61 @@ test('restore backup normalizes profile data and clears stale photos', async ({ 
   expect(stored.activeGame).toBeNull();
 });
 
+test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));
+    localStorage.setItem('soccerSettings', JSON.stringify({
+      teamName: 'Oyster Blueberries',
+      halfMinutes: 30,
+      minPlayMinutes: 15,
+    }));
+    localStorage.setItem('soccerGameHistory', JSON.stringify([{
+      date: '2026-05-09',
+      opponent: 'Blue Team',
+      ourScore: 2,
+      theirScore: 1,
+      playerStats: [{ id: 3, name: 'Avery', secondsPlayed: 900 }],
+    }]));
+    localStorage.setItem('playerPhotos', JSON.stringify({ 3: 'data:image/png;base64,OLDPHOTO' }));
+  });
+
+  await page.reload();
+  await expect(page.locator('#setup-screen')).toHaveClass(/active/);
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  await page.evaluate(() => {
+    localStorage.setItem('soccerActiveGame', JSON.stringify({
+      players: [{ id: 3, name: 'Avery' }],
+      opponentName: 'Paused Game',
+    }));
+  });
+  await page.locator('#new-season-btn').click();
+  await expect(page.locator('#new-season-modal')).not.toHaveClass(/hidden/);
+  await page.getByRole('button', { name: /Start Fresh/i }).click();
+
+  await expect(page.locator('#team-setup-screen')).toHaveClass(/active/);
+  await expect(page.locator('#roster-list')).toContainText('No players yet');
+  await expect(page.locator('#team-name-input')).toHaveValue('Oyster Blueberries');
+
+  const stored = await page.evaluate(() => ({
+    roster: JSON.parse(localStorage.getItem('soccerRoster') || '[]'),
+    settings: JSON.parse(localStorage.getItem('soccerSettings') || '{}'),
+    history: JSON.parse(localStorage.getItem('soccerGameHistory') || '[]'),
+    photos: localStorage.getItem('playerPhotos'),
+    activeGame: localStorage.getItem('soccerActiveGame'),
+  }));
+
+  expect(stored.roster).toEqual([]);
+  expect(stored.settings).toEqual({
+    teamName: 'Oyster Blueberries',
+    halfMinutes: 30,
+    minPlayMinutes: 15,
+  });
+  expect(stored.history).toEqual([]);
+  expect(stored.photos).toBeNull();
+  expect(stored.activeGame).toBeNull();
+});
+
 test('league CSV import skips duplicate names within the file', async ({ page }, testInfo) => {
   const csvPath = testInfo.outputPath('league-roster.csv');
   await fs.writeFile(csvPath, [

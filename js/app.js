@@ -29,10 +29,14 @@ import {
   updateStartBtn
 } from './roster.js';
 import {
+  backupBeforeNewSeason,
   closeClearDataModal,
+  closeNewSeasonModal,
   closeOverflowMenu,
   confirmClearData,
+  confirmStartNewSeason,
   executeClearData,
+  executeStartNewSeason,
   goBackFromTeamSetup,
   goToSetup,
   goToTeamSetup,
@@ -192,6 +196,10 @@ document.getElementById('backup-team-btn').addEventListener('click', () => expor
 document.getElementById('team-name-input').addEventListener('input', onTeamNameInput);
 document.getElementById('team-name-input').addEventListener('blur', saveSettings);
 document.getElementById('add-player-btn').addEventListener('click', addRosterPlayer);
+document.getElementById('new-season-btn').addEventListener('click', confirmStartNewSeason);
+document.getElementById('new-season-backup-btn').addEventListener('click', backupBeforeNewSeason);
+document.getElementById('new-season-confirm-btn').addEventListener('click', executeStartNewSeason);
+document.getElementById('new-season-cancel-btn').addEventListener('click', closeNewSeasonModal);
 document.getElementById('clear-data-btn').addEventListener('click', confirmClearData);
 document.getElementById('clear-confirm-btn').addEventListener('click', executeClearData);
 document.getElementById('clear-cancel-btn').addEventListener('click', closeClearDataModal);

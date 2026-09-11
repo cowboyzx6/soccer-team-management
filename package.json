@@ -1,5 +1,5 @@
 {
-  "name": "soccerteammanagement",
+  "name": "soccer-team-management",
   "version": "1.0.0",
   "description": "A browser-only web app for managing youth soccer rotations during live games. It tracks who is on the field, who is on the bench, playing time by player, time by position, goals, game history, and season totals.",
   "main": "sw.js",
@@ -12,15 +12,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cowboyzx6/SoccerTeamManagement.git"
+    "url": "git+https://github.com/cowboyzx6/soccer-team-management.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/cowboyzx6/SoccerTeamManagement/issues"
+    "url": "https://github.com/cowboyzx6/soccer-team-management/issues"
   },
-  "homepage": "https://github.com/cowboyzx6/SoccerTeamManagement#readme",
+  "homepage": "https://github.com/cowboyzx6/soccer-team-management#readme",
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/node": "^25.7.0"

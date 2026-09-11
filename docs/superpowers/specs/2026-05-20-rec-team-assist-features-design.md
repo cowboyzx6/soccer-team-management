@@ -1,7 +1,7 @@
 # Rec Team Assist Features — Design Spec
 
 **Date:** 2026-05-20
-**App:** SoccerTeamManagement PWA (Oyster Blueberries Player Tracker)
+**App:** soccer-team-management PWA (Oyster Blueberries Player Tracker)
 **Target device:** iPad (primary), phone (secondary)
 **Audience:** Recreational youth soccer coach on a sideline
 

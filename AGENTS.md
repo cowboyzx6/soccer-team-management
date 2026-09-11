@@ -1,4 +1,4 @@
-# Codex Instructions for SoccerTeamManagement
+# Codex Instructions for soccer-team-management
 
 Soccer Team Management is a browser-only youth soccer rotation app. It is vanilla HTML, CSS, and JavaScript using browser-native ES modules.
 

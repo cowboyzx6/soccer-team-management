@@ -34,7 +34,10 @@ export const state = {
   lineupDraft: [],
   savedChecked: new Set(),
   playerPhotos: {},
-  gameFinalized: false
+  gameFinalized: false,
+  gamePlan: null,
+  isPrePlanning: false,
+  prePlanHalf: null
 };
 
 export const POSITIONS = {

@@ -33,6 +33,28 @@ export function loadSettings() {
   applySettingsToUi();
 }
 
+// Persists the "Plan Both Halves in Advance" lineups on their own, separate
+// from the active-game snapshot, so a saved plan survives closing the
+// browser entirely before the game even starts.
+export function saveGamePlan() {
+  if (state.gamePlan) {
+    localStorage.setItem('soccerGamePlan', JSON.stringify(state.gamePlan));
+  } else {
+    localStorage.removeItem('soccerGamePlan');
+  }
+}
+
+export function loadGamePlan() {
+  const raw = localStorage.getItem('soccerGamePlan');
+  if (!raw) { state.gamePlan = null; return; }
+  try {
+    state.gamePlan = JSON.parse(raw);
+  } catch {
+    state.gamePlan = null;
+    localStorage.removeItem('soccerGamePlan');
+  }
+}
+
 export function loadGameHistory() {
   const raw = localStorage.getItem('soccerGameHistory');
   if (raw) {
@@ -64,7 +86,8 @@ export function saveActiveGame() {
       subPlans: state.subPlans,
       planningBenchId: state.planningBenchId,
       planningPosition: state.planningPosition,
-      gameDate: state.gameDate
+      gameDate: state.gameDate,
+      gamePlan: state.gamePlan
     }));
   } catch (e) {
     console.error('saveActiveGame failed:', e);
@@ -100,6 +123,7 @@ export function checkForActiveGame() {
   state.planningBenchId  = saved.planningBenchId ?? null;
   state.planningPosition = saved.planningPosition ?? null;
   state.gameDate         = saved.gameDate        || new Date().toISOString().slice(0, 10);
+  state.gamePlan         = saved.gamePlan        ?? null;
 
   showScreen('game-screen');
   document.dispatchEvent(new CustomEvent('game:resumed'));

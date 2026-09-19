@@ -747,6 +747,12 @@ export function handleHalfEnd() {
     confirmBtn.className          = 'btn btn-green';
     state.halfActionIsEnd               = false;
     document.getElementById('half-end-early-btn').style.display = 'block';
+
+    const usePlanBtn = document.getElementById('half-use-plan-btn');
+    if (usePlanBtn) {
+      const hasHalf2Plan = !!(state.gamePlan && state.gamePlan.half2);
+      usePlanBtn.style.display = hasHalf2Plan ? 'block' : 'none';
+    }
   } else {
     title.textContent = 'End Game?';
     body.innerHTML    = '<p style="color:var(--text-modal-p);font-size:0.92rem;line-height:1.5;margin:0;">This will stop all timers and show the final summary.</p>';
@@ -754,6 +760,8 @@ export function handleHalfEnd() {
     confirmBtn.className   = 'btn btn-red';
     state.halfActionIsEnd        = true;
     document.getElementById('half-end-early-btn').style.display = 'none';
+    const usePlanBtn = document.getElementById('half-use-plan-btn');
+    if (usePlanBtn) usePlanBtn.style.display = 'none';
   }
 
   openModal('half-modal');
@@ -763,21 +771,25 @@ export function confirmHalfAction() {
   if (state.halfActionIsEnd) {
     endGame();
   } else {
-    startSecondHalf();
+    startSecondHalf(false);
   }
+}
+
+// Applies the pre-planned Half 2 lineup instead of the normal goalie-continuity
+// behavior. Only reachable from the halftime modal when a Half 2 plan exists.
+export function useHalf2Plan() {
+  startSecondHalf(true);
 }
 
 export function closeHalfModal() {
   closeModal('half-modal');
 }
 
-export function startSecondHalf() {
+export function startSecondHalf(usePlannedLineup = false) {
   closeModal('half-modal');
 
   // Commit all 1st half position times before any position changes
   state.players.filter(p => p.onField).forEach(p => commitPositionTime(p));
-
-  const secondHalfGoalieId = state.goalie2Id || state.goalie1Id;
 
   state.players.forEach(p => {
     if (p.onField && p.subInAt !== null) {
@@ -793,12 +805,34 @@ export function startSecondHalf() {
     if (wasOnField) p.benchSince = state.totalElapsed;
   });
 
-  const secondHalfGoalie = state.players.find(p => p.id === secondHalfGoalieId);
-  if (secondHalfGoalie) {
-    secondHalfGoalie.onField    = true;
-    secondHalfGoalie.subInAt    = state.totalElapsed;
-    secondHalfGoalie.position   = 'GK';
-    secondHalfGoalie.benchSince = null;
+  const half2Plan = usePlannedLineup && state.gamePlan ? state.gamePlan.half2 : null;
+
+  if (half2Plan) {
+    // Full pre-planned lineup: bring each planned player onto their planned
+    // position. Anyone in the plan who isn't in today's game (no-show, left
+    // early) is simply skipped and stays off the field.
+    Object.entries(half2Plan).forEach(([pos, playerId]) => {
+      const p = state.players.find(pl => pl.id === playerId && !pl.leftEarly);
+      if (!p) return;
+      p.onField    = true;
+      p.subInAt    = state.totalElapsed;
+      p.position   = pos;
+      p.benchSince = null;
+    });
+    const planGoalie = state.players.find(p => p.onField && p.position === 'GK');
+    state.activeGoalieId = planGoalie ? planGoalie.id : null;
+  } else {
+    // Default: continue with whoever was the 2nd-half goalie pick; everyone
+    // else stays benched until the coach subs them in live.
+    const secondHalfGoalieId = state.goalie2Id || state.goalie1Id;
+    const secondHalfGoalie = state.players.find(p => p.id === secondHalfGoalieId);
+    if (secondHalfGoalie) {
+      secondHalfGoalie.onField    = true;
+      secondHalfGoalie.subInAt    = state.totalElapsed;
+      secondHalfGoalie.position   = 'GK';
+      secondHalfGoalie.benchSince = null;
+    }
+    state.activeGoalieId = secondHalfGoalie ? secondHalfGoalie.id : null;
   }
 
   // Start 2nd half position timers after all position changes are settled
@@ -807,7 +841,6 @@ export function startSecondHalf() {
   state.currentHalf      = 2;
   state.halfClock        = HALF_DURATION();
   state.halfActionIsEnd  = true;
-  state.activeGoalieId   = secondHalfGoalie ? secondHalfGoalie.id : null;
   state.subPlans         = [];
   state.planningBenchId  = null;
   state.planningPosition = null;

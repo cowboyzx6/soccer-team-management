@@ -1,6 +1,7 @@
 import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { avatarHtml, avatarParts, checkedPlayers, renderGameDayCheckboxes } from './roster.js';
 import { closeModal, escHtml, openModal, showScreen } from './utils.js';
+import { saveGamePlan } from './persistence.js';
 
 const WHEEL_ITEM_H = 60;
 const WHEEL_REPS = 50;
@@ -40,6 +41,8 @@ export function goToLineup() {
   state.goalie2Id = null;
   state.activeGoalieId = null;
   state.goaliePickerSkipped = false;
+  state.isPrePlanning = false;
+  state.prePlanHalf = null;
 
   document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Starting Lineup`;
 
@@ -52,9 +55,110 @@ export function goToLineup() {
     position: null,
   }));
 
+  // Seed from a saved advance plan for Half 1 when one exists for these players,
+  // so the live starting lineup starts pre-filled but stays fully editable.
+  if (state.gamePlan && state.gamePlan.half1) {
+    Object.entries(state.gamePlan.half1).forEach(([pos, playerId]) => {
+      const p = state.lineupDraft.find(dp => dp.id === playerId);
+      if (p) { p.position = pos; p.onField = true; }
+    });
+  }
+
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
   showGkPicker();
+}
+
+// ------------------------------------------------------------
+//  PLAN AHEAD (pre-plan Half 1 + Half 2 lineups before the game)
+// ------------------------------------------------------------
+export function goToPlanAhead() {
+  const present = checkedPlayers();
+  if (present.length < 1) return;
+
+  state.teamName = document.getElementById('team-name-input').value.trim() || 'My Team';
+  state.opponentName = document.getElementById('opponent-input').value.trim();
+  state.gameDate = document.getElementById('game-date-input').value || new Date().toISOString().slice(0, 10);
+
+  state.savedChecked = new Set(present.map(p => p.id));
+  state.isPrePlanning = true;
+  state.prePlanHalf = 1;
+
+  state.lineupDraft = [...present].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({
+    id: p.id,
+    name: p.name,
+    onField: false,
+    position: null,
+  }));
+
+  // Editing an existing plan for the same roster pre-fills Half 1 from it.
+  if (state.gamePlan && state.gamePlan.half1) {
+    Object.entries(state.gamePlan.half1).forEach(([pos, playerId]) => {
+      const p = state.lineupDraft.find(dp => dp.id === playerId);
+      if (p) { p.position = pos; p.onField = true; }
+    });
+  }
+
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 1 Lineup`;
+  showScreen('lineup-screen');
+  renderLineup();
+}
+
+function buildPositionMapFromDraft() {
+  const map = {};
+  state.lineupDraft.forEach(p => { if (p.position) map[p.position] = p.id; });
+  return map;
+}
+
+// Called by the lineup screen's main button while pre-planning. Saves the
+// current half's positions and either advances to Half 2 or finishes the plan.
+export function advancePrePlan() {
+  const posMap = buildPositionMapFromDraft();
+  state.gamePlan = state.gamePlan || {};
+
+  if (state.prePlanHalf === 1) {
+    state.gamePlan.half1 = posMap;
+
+    state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
+    // Editing an existing plan pre-fills Half 2 from what was saved before.
+    if (state.gamePlan.half2) {
+      Object.entries(state.gamePlan.half2).forEach(([pos, playerId]) => {
+        const p = state.lineupDraft.find(dp => dp.id === playerId);
+        if (p) { p.position = pos; p.onField = true; }
+      });
+    }
+
+    state.prePlanHalf = 2;
+    state.selectedLineupSlot = null;
+    state.selectedLineupPlayer = null;
+    document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 2 Lineup`;
+    saveGamePlan();
+    renderLineup();
+  } else {
+    state.gamePlan.half2 = posMap;
+    state.isPrePlanning = false;
+    state.prePlanHalf = null;
+    state.selectedLineupSlot = null;
+    state.selectedLineupPlayer = null;
+    saveGamePlan();
+    showScreen('setup-screen');
+    renderGameDayCheckboxes(true);
+    document.dispatchEvent(new CustomEvent('gameplan:saved'));
+  }
+}
+
+// Routes the lineup screen's single launch button to the right flow.
+export function handleLaunchClick() {
+  if (state.isPrePlanning) advancePrePlan();
+  else launchGame();
+}
+
+export function clearGamePlan() {
+  state.gamePlan = null;
+  saveGamePlan();
+  document.dispatchEvent(new CustomEvent('gameplan:saved'));
 }
 
 export function showGkPicker(phase = 1) {
@@ -129,6 +233,8 @@ export function skipGkPicker() {
 export function goBackFromLineup() {
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
+  state.isPrePlanning = false;
+  state.prePlanHalf = null;
   showScreen('setup-screen');
   renderGameDayCheckboxes(true);
 }
@@ -356,7 +462,13 @@ export function updateLineupLaunchBtn() {
   const posCount = state.lineupDraft.filter(p => p.position).length;
   const ready = posCount >= 1;
   btn.disabled = !ready;
-  btn.textContent = ready ? 'Start Game \u2192' : 'Assign at least 1 player';
+  if (!ready) {
+    btn.textContent = 'Assign at least 1 player';
+  } else if (state.isPrePlanning) {
+    btn.textContent = state.prePlanHalf === 1 ? 'Save Half 1 \u2192 Plan Half 2' : 'Save Plan \u2713';
+  } else {
+    btn.textContent = 'Start Game \u2192';
+  }
 }
 
 export function launchGame() {

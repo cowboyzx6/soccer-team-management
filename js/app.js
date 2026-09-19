@@ -7,6 +7,7 @@ import {
   importProfile,
   initEventListeners as initPersistenceListeners,
   loadGameHistory,
+  loadGamePlan,
   loadRoster,
   loadSettings,
   saveActiveGame,
@@ -26,6 +27,7 @@ import {
   renderGameDayCheckboxes,
   renderRoster,
   renderTeamSetupRoster,
+  updatePlanAheadStatus,
   updateStartBtn
 } from './roster.js';
 import {
@@ -48,14 +50,16 @@ import {
 } from './summary.js';
 import {
   cancelGoalieSpin,
+  clearGamePlan,
   confirmGkFromSpin,
   confirmGoalies,
   goBackFromLineup,
   goToLineup,
+  goToPlanAhead,
+  handleLaunchClick,
   handleLineupPointerDown,
   handleLineupPointerMove,
   handleLineupPointerUp,
-  launchGame,
   nextGoaliePick,
   openGkSpin,
   skipGkPicker,
@@ -93,7 +97,8 @@ import {
   syncGamePhaseUi,
   togglePause,
   undoLastGoal,
-  updateGoalBtn
+  updateGoalBtn,
+  useHalf2Plan
 } from './game.js';
 import { applyTheme, closeModal, toggleTheme } from './utils.js';
 
@@ -139,6 +144,8 @@ document.addEventListener('profile:imported', () => {
   updateStartBtn();
 });
 
+document.addEventListener('gameplan:saved', updatePlanAheadStatus);
+
 document.addEventListener('game-review:loaded', e => {
   showGameReviewFromRecord(e.detail.gameRecord, e.detail.teamName);
 });
@@ -152,8 +159,10 @@ loadPhotos();
 loadSettings();
 loadGameHistory();
 loadRoster();
+loadGamePlan();
 renderTeamSetupRoster();
 renderGameDayCheckboxes();
+updatePlanAheadStatus();
 checkForActiveGame();
 
 window.addEventListener('beforeunload', () => {
@@ -189,6 +198,10 @@ document.getElementById('half-plus-btn').addEventListener('click', () => changeH
 document.getElementById('min-play-minus-btn').addEventListener('click', () => changeMinPlayMinutes(-5));
 document.getElementById('min-play-plus-btn').addEventListener('click', () => changeMinPlayMinutes(5));
 document.getElementById('start-btn').addEventListener('click', goToLineup);
+document.getElementById('plan-ahead-btn').addEventListener('click', goToPlanAhead);
+document.getElementById('plan-ahead-clear-btn').addEventListener('click', () => {
+  if (confirm('Clear the planned lineups for both halves?')) clearGamePlan();
+});
 document.getElementById('team-setup-back-btn').addEventListener('click', goBackFromTeamSetup);
 document.getElementById('import-csv-btn').addEventListener('click', importLeagueCsv);
 document.getElementById('restore-backup-btn').addEventListener('click', importProfile);
@@ -205,7 +218,7 @@ document.getElementById('clear-confirm-btn').addEventListener('click', executeCl
 document.getElementById('clear-cancel-btn').addEventListener('click', closeClearDataModal);
 document.getElementById('about-close-btn').addEventListener('click', () => closeModal('about-modal'));
 document.getElementById('lineup-back-btn').addEventListener('click', goBackFromLineup);
-document.getElementById('launch-btn').addEventListener('click', launchGame);
+document.getElementById('launch-btn').addEventListener('click', handleLaunchClick);
 document.getElementById('goal-btn').addEventListener('click', openGoalModal);
 document.getElementById('undo-goal-btn').addEventListener('click', undoLastGoal);
 document.getElementById('pause-btn').addEventListener('click', togglePause);
@@ -248,6 +261,7 @@ document.getElementById('goal-cancel-btn').addEventListener('click', closeGoalMo
 document.getElementById('half-confirm-btn').addEventListener('click', confirmHalfAction);
 document.getElementById('half-cancel-btn').addEventListener('click', closeHalfModal);
 document.getElementById('half-end-early-btn').addEventListener('click', endGame);
+document.getElementById('half-use-plan-btn').addEventListener('click', useHalf2Plan);
 
 document.getElementById('field-positions').addEventListener('click', e => {
   if (isFieldClickSuppressed()) {

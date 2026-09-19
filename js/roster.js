@@ -235,6 +235,32 @@ export function updateStartBtn() {
   const n = checkedPlayers().length;
   const hasOpponent = document.getElementById('opponent-input').value.trim().length > 0;
   document.getElementById('start-btn').disabled = n < 1 || !hasOpponent;
+  const planBtn = document.getElementById('plan-ahead-btn');
+  if (planBtn) planBtn.disabled = n < 1 || !hasOpponent;
+  updatePlanAheadStatus();
+}
+
+export function updatePlanAheadStatus() {
+  const planBtn = document.getElementById('plan-ahead-btn');
+  const status = document.getElementById('plan-ahead-status');
+  const statusText = document.getElementById('plan-ahead-status-text');
+  if (!planBtn || !status) return;
+
+  const hasFull = !!(state.gamePlan && state.gamePlan.half1 && state.gamePlan.half2);
+  const hasPartial = !!(state.gamePlan && (state.gamePlan.half1 || state.gamePlan.half2) && !hasFull);
+
+  if (hasFull) {
+    planBtn.textContent = '📋 Edit Planned Lineups';
+    if (statusText) statusText.textContent = '✅ Lineups planned for both halves';
+    status.style.display = 'flex';
+  } else if (hasPartial) {
+    planBtn.textContent = '📋 Finish Planning Lineups';
+    if (statusText) statusText.textContent = '⚠️ Half 1 saved — Half 2 still needs a plan';
+    status.style.display = 'flex';
+  } else {
+    planBtn.textContent = '📋 Plan Both Halves in Advance';
+    status.style.display = 'none';
+  }
 }
 
 export function checkedPlayers() {

@@ -25,6 +25,7 @@ The app is a **vanilla HTML/CSS/JavaScript app** with browser-native ES modules.
 - Start with any number of assigned field players, including short-handed games with fewer than 9 players.
 - Pick separate first-half and second-half goalkeepers manually, by spinner, or by explicitly reusing the first-half goalkeeper.
 - The goalie spinner avoids players who have already logged GK time in saved season history when possible.
+- **Plan Both Halves in Advance** — optionally build the Half 1 and Half 2 lineups ahead of the live game, on the same field diagram. The saved plan pre-fills the starting lineup when you set it live, and offers a one-tap "Use Planned Half 2 Lineup" option at halftime; skipping this entirely leaves the normal live/manual flow unchanged. The plan is saved locally and survives closing the browser until the game is played or the plan is cleared.
 
 ### Live game tracking
 
@@ -112,6 +113,7 @@ The main storage keys are:
 - `playerPhotos` — resized player photos as base64 image data.
 - `soccerGameHistory` — completed game records.
 - `soccerActiveGame` — interrupted in-progress game state.
+- `soccerGamePlan` — a saved "Plan Both Halves in Advance" lineup, kept independently so it survives closing the browser before the game starts.
 - `theme` — light/dark theme preference.
 
 No data is sent to a server by this app.

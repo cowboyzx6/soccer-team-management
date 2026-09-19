@@ -1,6 +1,6 @@
 import { state } from './state.js';
-import { clearActiveGame, exportProfile, saveGameHistory, saveRoster, saveSettings } from './persistence.js';
-import { avatarHtml, renderGameDayCheckboxes, renderTeamSetupRoster } from './roster.js';
+import { clearActiveGame, exportProfile, saveGameHistory, saveGamePlan, saveRoster, saveSettings } from './persistence.js';
+import { avatarHtml, renderGameDayCheckboxes, renderTeamSetupRoster, updatePlanAheadStatus } from './roster.js';
 import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
 
@@ -305,11 +305,16 @@ export function openAboutModal() {
 
 export function goToSetup() {
   clearActiveGame();
-  state.gameDate     = '';
-  state.opponentName = '';
+  state.gameDate       = '';
+  state.opponentName   = '';
+  state.gamePlan       = null;
+  state.isPrePlanning  = false;
+  state.prePlanHalf    = null;
+  saveGamePlan();
   document.getElementById('opponent-input').value = '';
   showScreen('setup-screen');
   renderGameDayCheckboxes();
+  updatePlanAheadStatus();
 }
 
 export function goToTeamSetup() {

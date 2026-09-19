@@ -45,6 +45,7 @@ export function goToLineup() {
   state.prePlanHalf = null;
 
   document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Starting Lineup`;
+  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
 
   state.savedChecked = new Set(present.map(p => p.id));
 
@@ -102,6 +103,7 @@ export function goToPlanAhead() {
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
   document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 1 Lineup`;
+  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
   showScreen('lineup-screen');
   renderLineup();
 }
@@ -134,6 +136,7 @@ export function advancePrePlan() {
     state.selectedLineupSlot = null;
     state.selectedLineupPlayer = null;
     document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 2 Lineup`;
+    document.getElementById('lineup-back-btn').textContent = '\u2190 Back to Half 1';
     saveGamePlan();
     renderLineup();
   } else {
@@ -231,12 +234,41 @@ export function skipGkPicker() {
 }
 
 export function goBackFromLineup() {
+  if (state.isPrePlanning && state.prePlanHalf === 2) {
+    goBackToPrePlanHalf1();
+    return;
+  }
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
   state.isPrePlanning = false;
   state.prePlanHalf = null;
   showScreen('setup-screen');
   renderGameDayCheckboxes(true);
+}
+
+// While pre-planning, steps back from the Half 2 draft to the Half 1 draft so
+// the coach can adjust it. The in-progress Half 2 draft is saved to the game
+// plan first so nothing is lost, and advancePrePlan() restores it again if
+// the coach moves forward past Half 1 a second time.
+export function goBackToPrePlanHalf1() {
+  state.gamePlan = state.gamePlan || {};
+  state.gamePlan.half2 = buildPositionMapFromDraft();
+  saveGamePlan();
+
+  state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
+  if (state.gamePlan.half1) {
+    Object.entries(state.gamePlan.half1).forEach(([pos, playerId]) => {
+      const p = state.lineupDraft.find(dp => dp.id === playerId);
+      if (p) { p.position = pos; p.onField = true; }
+    });
+  }
+
+  state.prePlanHalf = 1;
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 1 Lineup`;
+  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
+  renderLineup();
 }
 
 export function renderLineup() {
@@ -261,8 +293,10 @@ export function handleLineupPointerDown(e) {
     pointerId: e.pointerId,
     startX: e.clientX,
     startY: e.clientY,
+    startPosition: player.position,
     dragging: false,
     overSlot: null,
+    overBench: false,
     preview: null
   };
   item.setPointerCapture?.(e.pointerId);
@@ -292,6 +326,11 @@ export function handleLineupPointerMove(e) {
 
   lineupPointerDrag.overSlot = overSlot || null;
   if (lineupPointerDrag.overSlot) lineupPointerDrag.overSlot.classList.add('drag-over');
+
+  const benchList = document.getElementById('lineup-unassigned-list');
+  const overBench = !overSlot && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('.lineup-players-panel');
+  lineupPointerDrag.overBench = overBench;
+  benchList?.classList.toggle('drag-over', overBench && !!lineupPointerDrag.startPosition);
 }
 
 export function handleLineupPointerUp(e) {
@@ -304,6 +343,7 @@ export function handleLineupPointerUp(e) {
   drag.sourceItem.classList.remove('dragging');
   drag.sourceItem.releasePointerCapture?.(drag.pointerId);
   if (drag.overSlot) drag.overSlot.classList.remove('drag-over');
+  document.getElementById('lineup-unassigned-list')?.classList.remove('drag-over');
   removeFieldDragPreview(drag.preview);
 
   if (!drag.dragging) return;
@@ -312,7 +352,24 @@ export function handleLineupPointerUp(e) {
 
   if (drag.overSlot) {
     moveLineupPlayerToPosition(drag.playerId, drag.overSlot.dataset.position);
+  } else if (drag.overBench && drag.startPosition) {
+    moveLineupPlayerToBench(drag.playerId);
   }
+}
+
+// Drag-and-drop counterpart to tapping a field player then tapping away:
+// sends a player who currently has a field position back to the bench.
+function moveLineupPlayerToBench(playerId) {
+  const player = state.lineupDraft.find(p => p.id === playerId);
+  if (!player || !player.position) return;
+
+  if (player.position === 'GK') setLineupGoalieId('GK', null);
+
+  player.position = null;
+  player.onField = false;
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  renderLineup();
 }
 
 function moveLineupPlayerToPosition(playerId, targetPos) {
@@ -375,6 +432,18 @@ export function renderLineupField() {
   });
 }
 
+// While pre-planning, tells whether `playerId` already has a saved spot in
+// the half currently NOT being edited, so the bench card can flag it (e.g.
+// editing Half 2 while she's slotted at CF for Half 1).
+function otherHalfAssignment(playerId) {
+  if (!state.isPrePlanning || !state.gamePlan) return null;
+  const otherHalf = state.prePlanHalf === 1 ? 2 : 1;
+  const map = state.gamePlan[`half${otherHalf}`];
+  if (!map) return null;
+  const entry = Object.entries(map).find(([, id]) => id === playerId);
+  return entry ? { half: otherHalf, position: entry[0] } : null;
+}
+
 function renderLineupPlayers() {
   const list = document.getElementById('lineup-unassigned-list');
   const unassigned = state.lineupDraft.filter(p => !p.position);
@@ -402,7 +471,11 @@ function renderLineupPlayers() {
     const item = document.createElement('div');
     item.className = 'lineup-player' + (p.id === state.selectedLineupPlayer ? ' selected' : '');
     item.dataset.playerId = String(p.id);
-    item.innerHTML = `${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
+    const otherHalf = otherHalfAssignment(p.id);
+    const badge = otherHalf
+      ? `<span class="lineup-half-badge">H${otherHalf.half} \u00b7 ${otherHalf.position}</span>`
+      : '';
+    item.innerHTML = `${badge}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
     item.onclick = () => lineupPlayerTap(p.id);
     list.appendChild(item);
   });

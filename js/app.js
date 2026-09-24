@@ -84,6 +84,7 @@ import {
   handleFieldSlotPointerMove,
   handleFieldSlotPointerUp,
   handleHalfEnd,
+  holdGameRenders,
   isFieldClickSuppressed,
   moveFieldPlayerToBench,
   openGoalModal,
@@ -91,6 +92,7 @@ import {
   pauseGame,
   promptRemovePlayer,
   recordGoal,
+  releaseGameRenders,
   removeSubPair,
   renderClock,
   renderGame,
@@ -287,6 +289,11 @@ document.getElementById('field-positions').addEventListener('click', e => {
     moveFieldPlayerToBench(parseInt(benchBtn.closest('[data-player-id]').dataset.playerId));
   }
 }, true);
+
+document.getElementById('game-screen').addEventListener('pointerdown', holdGameRenders, true);
+window.addEventListener('pointerup', releaseGameRenders);
+window.addEventListener('pointercancel', releaseGameRenders);
+window.addEventListener('blur', releaseGameRenders);
 
 document.getElementById('field-positions').addEventListener('pointerdown', handleFieldSlotPointerDown);
 window.addEventListener('pointermove', handleFieldSlotPointerMove, { passive: false });

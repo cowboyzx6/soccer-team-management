@@ -663,3 +663,33 @@ test('sub tray remove button stays inside the tray at phone width', async ({ pag
     .evaluateAll(els => els.filter(el => el.scrollWidth > el.clientWidth).map(el => el.textContent));
   expect(clipped).toEqual([]);
 });
+
+test('undo drops a newer pair for the player who comes back on', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+
+  // Blake (subbed out) is now paired to LM, then the coach undoes the sub.
+  await benchCard(page, 2).click();
+  await fieldSlot(page, 'LM').click();
+  expect((await readSubState(page)).plans).toEqual([[2, 'LM']]);
+  await page.locator('#undo-sub-btn').click();
+
+  const s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.plans).toEqual([[4, 'CF']]);
+});
+
+test('a tap held across a clock tick still picks the player', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => (await import('/js/game.js')).resumeGame());
+
+  const box = await benchCard(page, 4).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1300);
+  await page.mouse.up();
+
+  expect((await readSubState(page)).subPick).toEqual({ zone: 'bench', id: 4 });
+});

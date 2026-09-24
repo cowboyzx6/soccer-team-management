@@ -57,7 +57,24 @@ export function tick() {
     document.getElementById('pause-btn').style.display = 'none';
   }
   renderClock();
-  renderGame();
+  // Rebuilding the field/bench mid-press would swallow the tap, so wait for the finger to lift.
+  if (pointerHeld) renderDeferred = true;
+  else renderGame();
+}
+
+let pointerHeld = false;
+let renderDeferred = false;
+
+export function holdGameRenders() {
+  pointerHeld = true;
+}
+
+// Runs on pointerup; the deferred render waits a task so the tap's click lands first.
+export function releaseGameRenders() {
+  pointerHeld = false;
+  if (!renderDeferred) return;
+  renderDeferred = false;
+  setTimeout(renderGame, 0);
 }
 
 export function renderClock() {
@@ -519,13 +536,17 @@ export function undoLastSub() {
   state.goalie1Id      = snap.goalie1Id;
   state.goalie2Id      = snap.goalie2Id;
 
-  // Put the executed pairs back in the tray; drop newer pairs that clash with them.
+  // Put the executed pairs back in the tray; drop newer pairs that clash with them
+  // or whose incoming player is back on the field.
   const inIds = new Set(snap.subPlans.map(pl => pl.inId));
   const poses = new Set(snap.subPlans.map(pl => pl.pos));
   state.subPlans = [
     ...state.subPlans.filter(pl => !inIds.has(pl.inId) && !poses.has(pl.pos)),
     ...snap.subPlans,
-  ];
+  ].filter(pl => {
+    const inn = state.players.find(p => p.id === pl.inId);
+    return inn && !inn.onField && !inn.leftEarly;
+  });
   state.subPick = null;
   renderGame();
   saveActiveGame();

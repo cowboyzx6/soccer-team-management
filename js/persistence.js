@@ -151,9 +151,17 @@ export function buildGameRecord() {
   };
 }
 
+// Spring = Jan–Jun, Fall = Jul–Dec, e.g. '2026-05-30' -> '2026-Spring'.
+export function seasonLabel(dateStr) {
+  const m = /^(\d{4})-(\d{2})/.exec(dateStr || '');
+  if (!m) return '';
+  return `${m[1]}-${Number(m[2]) <= 6 ? 'Spring' : 'Fall'}`;
+}
+
 export function buildProfile(includeGameRecord) {
   const profile = {
     appVersion: APP_VERSION,
+    season: '',
     teamName: state.teamName,
     halfMinutes: state.halfMinutes,
     roster: state.roster.map(p => ({
@@ -168,12 +176,17 @@ export function buildProfile(includeGameRecord) {
     profile.games.push(buildGameRecord());
   }
 
+  const latestGame = profile.games[profile.games.length - 1];
+  profile.season = seasonLabel(latestGame && latestGame.date);
+  if (!profile.season) delete profile.season;
+
   return profile;
 }
 
 export function exportProfile(includeGameRecord = false, forceGameFilename = false) {
   const profile  = buildProfile(includeGameRecord);
   const safeName = (state.teamName || 'team').replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const prefix   = profile.season ? `${safeName}_${profile.season}` : safeName;
   let filename;
   if (includeGameRecord || forceGameFilename) {
     const now = new Date();
@@ -182,9 +195,9 @@ export function exportProfile(includeGameRecord = false, forceGameFilename = fal
     const gameNumber = profile.games.length || 1;
     const dateStr = latestGame.date || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}`;
-    filename = `${safeName}_Game_${gameNumber}_${dateStr}_${timeStr}.json`;
+    filename = `${prefix}_Game_${gameNumber}_${dateStr}_${timeStr}.json`;
   } else {
-    filename = `${safeName}-profile.json`;
+    filename = `${prefix}-profile.json`;
   }
 
   const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });

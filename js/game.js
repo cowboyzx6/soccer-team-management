@@ -2,8 +2,8 @@ import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { buildGameRecord, clearActiveGame, exportProfile, saveActiveGame, saveGameHistory } from './persistence.js';
 import { avatarHtml, avatarParts } from './roster.js';
 import { showSummary } from './summary.js';
-import { closeModal, escHtml, fmt, openModal } from './utils.js';
-import { createFieldDragPreview, findNearestSlot, moveFieldDragPreview, removeFieldDragPreview } from './lineup.js';
+import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
+import { createFieldDragPreview, findNearestSlot, moveFieldDragPreview, openHalftimeLineup, removeFieldDragPreview } from './lineup.js';
 
 let intervalId = null;
 const HALF_DURATION = () => state.halfMinutes * 60;
@@ -753,6 +753,7 @@ export function handleHalfEnd() {
       const hasHalf2Plan = !!(state.gamePlan && state.gamePlan.half2);
       usePlanBtn.style.display = hasHalf2Plan ? 'block' : 'none';
     }
+    document.getElementById('half-edit-lineup-btn').style.display = 'block';
   } else {
     title.textContent = 'End Game?';
     body.innerHTML    = '<p style="color:var(--text-modal-p);font-size:0.92rem;line-height:1.5;margin:0;">This will stop all timers and show the final summary.</p>';
@@ -762,6 +763,7 @@ export function handleHalfEnd() {
     document.getElementById('half-end-early-btn').style.display = 'none';
     const usePlanBtn = document.getElementById('half-use-plan-btn');
     if (usePlanBtn) usePlanBtn.style.display = 'none';
+    document.getElementById('half-edit-lineup-btn').style.display = 'none';
   }
 
   openModal('half-modal');
@@ -783,6 +785,25 @@ export function useHalf2Plan() {
 
 export function closeHalfModal() {
   closeModal('half-modal');
+}
+
+// Halftime lineup editor: the modal hands off to the lineup screen, which
+// either comes back here (cancel) or starts the 2nd half with its lineup.
+export function editHalf2Lineup() {
+  closeModal('half-modal');
+  openHalftimeLineup();
+}
+
+export function returnToHalftime() {
+  showScreen('game-screen');
+  openModal('half-modal');
+}
+
+export function startSecondHalfWithLineup(lineup) {
+  state.gamePlan = state.gamePlan || {};
+  state.gamePlan.half2 = lineup;
+  showScreen('game-screen');
+  startSecondHalf(true);
 }
 
 export function startSecondHalf(usePlannedLineup = false) {
@@ -821,6 +842,7 @@ export function startSecondHalf(usePlannedLineup = false) {
     });
     const planGoalie = state.players.find(p => p.onField && p.position === 'GK');
     state.activeGoalieId = planGoalie ? planGoalie.id : null;
+    if (planGoalie) state.goalie2Id = planGoalie.id;
   } else {
     // Default: continue with whoever was the 2nd-half goalie pick; everyone
     // else stays benched until the coach subs them in live.

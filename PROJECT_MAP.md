@@ -108,7 +108,7 @@ There is no separate `review-screen` element. Game review imports are rendered t
 | Late arrivals | `openLateModal`, `confirmLateArrival`, `#late-player-list` |
 | Remove player from active game | `promptRemovePlayer`, `confirmRemovePlayer`, `leftEarly`, delegated bench listener |
 | Goals / score | `openGoalModal`, `recordGoal`, `confirmGoal`, `confirmTheirScore`, `renderScore`, `goals`, `scoreUs`, `scoreThem` |
-| Half time / second half | `handleHalfEnd`, `startSecondHalf`, `h1Snapshot`, `goalie2Id`, `activeGoalieId` |
+| Half time / second half | `handleHalfEnd`, `startSecondHalf`, `h1Snapshot`, `goalie2Id`, `activeGoalieId`; halftime lineup edit: `editHalf2Lineup` → `openHalftimeLineup` (lineup.js, `state.isHalftimeEdit`) → `halftime-lineup:start` / `:cancel` events → `startSecondHalfWithLineup` / `returnToHalftime` |
 | End game / summary | `endGame`, `buildGameRecord`, `showSummary`, `renderGoalsHtml`, `saveGameHistory`, `download-prompt-modal` |
 | Season summary | `showSeasonSummary`, `setSeasonSort`, `compareSeasonPlayers`, `gameHistory`, `season-body` |
 | Backup/restore/import | UI labels: `Backup Team`, `Restore Backup`, `Import League CSV`. Code targets: `normalizeProfile`, `buildProfile`, `exportProfile`, `importProfile`, `importLeagueCsv`, `parseCsvRoster` |

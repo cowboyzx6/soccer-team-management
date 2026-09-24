@@ -313,3 +313,73 @@ test('goal button disables when the game is paused', async ({ page }) => {
   expect(buttonState.runningDisabled).toBe(false);
   expect(buttonState.pausedDisabled).toBe(true);
 });
+
+test('halftime lineup can be edited before the 2nd half starts', async ({ page }) => {
+  await page.evaluate(async () => {
+    const [{ state }, { handleHalfEnd }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/game.js'),
+    ]);
+
+    const mk = (id, name, position) => ({
+      id, name,
+      onField: !!position,
+      totalPlayed: 0,
+      subInAt: position ? 0 : null,
+      h1Snapshot: null,
+      position: position || null,
+      positionTime: {},
+      positionStart: position ? 0 : null,
+      benchSince: position ? null : 0,
+    });
+
+    state.teamName = 'Oyster Blueberries';
+    state.halfMinutes = 25;
+    state.totalElapsed = 1500;
+    state.halfClock = 0;
+    state.currentHalf = 1;
+    state.players = [mk(1, 'Avery', 'GK'), mk(2, 'Blake', 'CF'), mk(3, 'Casey')];
+    state.goalie1Id = 1;
+    state.goalie2Id = 2;
+    state.gamePlan = { half2: { GK: 2, CF: 1 } };
+    handleHalfEnd();
+  });
+
+  await expect(page.locator('#half-edit-lineup-btn')).toBeVisible();
+
+  // Back from the editor returns to the halftime modal without starting the half.
+  await page.locator('#half-edit-lineup-btn').click();
+  await expect(page.locator('#lineup-screen')).toHaveClass(/active/);
+  await page.locator('#lineup-back-btn').click();
+  await expect(page.locator('#game-screen')).toHaveClass(/active/);
+  await expect(page.locator('#half-modal')).not.toHaveClass(/hidden/);
+
+  // Edit: swap Casey in for Avery at CF, then start the half.
+  await page.locator('#half-edit-lineup-btn').click();
+  await expect(page.locator('#lineup-field-positions [data-position="GK"]')).toContainText('Blake');
+  await expect(page.locator('#lineup-field-positions [data-position="CF"]')).toContainText('Avery');
+  await page.locator('#lineup-field-positions [data-position="CF"]').click();
+  await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="3"]').click();
+  await page.locator('#lineup-field-positions [data-position="CF"]').click();
+  await expect(page.locator('#launch-btn')).toHaveText(/Start 2nd Half/);
+  await page.locator('#launch-btn').click();
+
+  await expect(page.locator('#game-screen')).toHaveClass(/active/);
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return {
+      half: state.currentHalf,
+      onField: state.players.filter(p => p.onField).map(p => [p.id, p.position]).sort(),
+      goalie2Id: state.goalie2Id,
+      activeGoalieId: state.activeGoalieId,
+      isRunning: state.isRunning,
+    };
+  });
+  expect(result).toEqual({
+    half: 2,
+    onField: [[2, 'GK'], [3, 'CF']],
+    goalie2Id: 2,
+    activeGoalieId: 2,
+    isRunning: false,
+  });
+});

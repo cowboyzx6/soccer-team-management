@@ -77,6 +77,7 @@ import {
   confirmHalfAction,
   confirmRemovePlayer,
   confirmTheirScore,
+  editHalf2Lineup,
   endGame,
   executeAllPlans,
   handleFieldSlotPointerDown,
@@ -93,7 +94,9 @@ import {
   renderClock,
   renderGame,
   renderScore,
+  returnToHalftime,
   setBenchSort,
+  startSecondHalfWithLineup,
   syncGamePhaseUi,
   togglePause,
   undoLastGoal,
@@ -262,6 +265,9 @@ document.getElementById('half-confirm-btn').addEventListener('click', confirmHal
 document.getElementById('half-cancel-btn').addEventListener('click', closeHalfModal);
 document.getElementById('half-end-early-btn').addEventListener('click', endGame);
 document.getElementById('half-use-plan-btn').addEventListener('click', useHalf2Plan);
+document.getElementById('half-edit-lineup-btn').addEventListener('click', editHalf2Lineup);
+document.addEventListener('halftime-lineup:start', e => startSecondHalfWithLineup(e.detail.lineup));
+document.addEventListener('halftime-lineup:cancel', returnToHalftime);
 
 document.getElementById('field-positions').addEventListener('click', e => {
   if (isFieldClickSuppressed()) {

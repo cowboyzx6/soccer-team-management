@@ -37,7 +37,8 @@ export const state = {
   gameFinalized: false,
   gamePlan: null,
   isPrePlanning: false,
-  prePlanHalf: null
+  prePlanHalf: null,
+  isHalftimeEdit: false
 };
 
 export const POSITIONS = {

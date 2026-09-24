@@ -152,9 +152,63 @@ export function advancePrePlan() {
   }
 }
 
+// ------------------------------------------------------------
+//  HALFTIME EDIT (adjust the 2nd half lineup during the break)
+// ------------------------------------------------------------
+// Opens the lineup screen for the 2nd half while the game is at halftime.
+// Seeds from the saved Half 2 plan when there is one; otherwise from the
+// 1st half field positions with the 2nd half goalie moved into GK.
+export function openHalftimeLineup() {
+  state.isHalftimeEdit = true;
+  state.gkPickerPhase = 2;
+
+  state.lineupDraft = state.players
+    .filter(p => !p.leftEarly)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(p => ({ id: p.id, name: p.name, onField: false, position: null }));
+
+  const plan = state.gamePlan && state.gamePlan.half2;
+  if (plan) {
+    Object.entries(plan).forEach(([pos, playerId]) => {
+      const p = state.lineupDraft.find(dp => dp.id === playerId);
+      if (p) { p.position = pos; p.onField = true; }
+    });
+  } else {
+    state.players.filter(p => p.onField && p.position).forEach(live => {
+      const p = state.lineupDraft.find(dp => dp.id === live.id);
+      if (p) { p.position = live.position; p.onField = true; }
+    });
+    const goalie = state.lineupDraft.find(p => p.id === (state.goalie2Id || state.goalie1Id));
+    if (goalie && goalie.position !== 'GK') {
+      const oldGk = state.lineupDraft.find(p => p.position === 'GK');
+      if (oldGk) { oldGk.position = null; oldGk.onField = false; }
+      goalie.position = 'GK';
+      goalie.onField = true;
+    }
+  }
+
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  document.getElementById('lineup-header-title').textContent = `${state.teamName} — 2nd Half Lineup`;
+  document.getElementById('lineup-back-btn').textContent = '← Back to Halftime';
+  showScreen('lineup-screen');
+  renderLineup();
+}
+
+function finishHalftimeLineup(start) {
+  const lineup = start ? buildPositionMapFromDraft() : null;
+  state.isHalftimeEdit = false;
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  document.dispatchEvent(new CustomEvent(start ? 'halftime-lineup:start' : 'halftime-lineup:cancel', {
+    detail: { lineup }
+  }));
+}
+
 // Routes the lineup screen's single launch button to the right flow.
 export function handleLaunchClick() {
-  if (state.isPrePlanning) advancePrePlan();
+  if (state.isHalftimeEdit) finishHalftimeLineup(true);
+  else if (state.isPrePlanning) advancePrePlan();
   else launchGame();
 }
 
@@ -234,6 +288,10 @@ export function skipGkPicker() {
 }
 
 export function goBackFromLineup() {
+  if (state.isHalftimeEdit) {
+    finishHalftimeLineup(false);
+    return;
+  }
   if (state.isPrePlanning && state.prePlanHalf === 2) {
     goBackToPrePlanHalf1();
     return;
@@ -537,6 +595,8 @@ export function updateLineupLaunchBtn() {
   btn.disabled = !ready;
   if (!ready) {
     btn.textContent = 'Assign at least 1 player';
+  } else if (state.isHalftimeEdit) {
+    btn.textContent = 'Start 2nd Half →';
   } else if (state.isPrePlanning) {
     btn.textContent = state.prePlanHalf === 1 ? 'Save Half 1 \u2192 Plan Half 2' : 'Save Plan \u2713';
   } else {

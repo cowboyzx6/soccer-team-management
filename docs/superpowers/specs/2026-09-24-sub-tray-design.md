@@ -100,7 +100,7 @@ The coach does a mix of batched subs at stoppages and one-off subs (injury, tire
 - `removeSubPair(pos)` replaces `cancelPlanForPos`; wired to tray ✕ via delegated listener in `js/app.js`.
 - `executeAllPlans()` captures an undo snapshot before mutating.
 - `moveFieldPlayerToBench()` captures an undo snapshot.
-- `undoLastSub()` restores the snapshot, clears stale pairs involving affected players, calls `renderGame()` and `saveActiveGame()`.
+- `undoLastSub()` restores the snapshot. After an undone Sub Now, the executed pairs go back into the tray (so a too-early Sub Now can be fixed with one ✕ and re-sent); current pairs that conflict with them are dropped. Calls `renderGame()` and `saveActiveGame()`.
 - `makeSub()` is no longer reachable from taps; remove if unused elsewhere.
 - `renderGame()` renders the tray rows, Sub Now, Undo, and hint.
 - `handleFieldSlotPointerDown` gate changes from `planningBenchId !== null` to `subPick?.zone === 'bench'`.

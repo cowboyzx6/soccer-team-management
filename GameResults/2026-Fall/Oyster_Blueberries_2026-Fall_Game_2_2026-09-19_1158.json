@@ -428,8 +428,8 @@
     {
       "date": "2026-09-19",
       "opponent": "Silver Dolphins",
-      "ourScore": 2,
-      "theirScore": 1,
+      "ourScore": 6,
+      "theirScore": 3,
       "goals": [
         {
           "scorer": null,
@@ -447,21 +447,55 @@
           "scorerId": 17,
           "half": 2,
           "team": "us"
+        },
+        {
+          "scorer": "Penelope C.",
+          "scorerId": 17,
+          "half": 2,
+          "team": "us"
+        },
+        {
+          "scorer": "Penelope C.",
+          "scorerId": 17,
+          "half": 2,
+          "team": "us"
+        },
+        {
+          "scorer": "Penelope C.",
+          "scorerId": 17,
+          "half": 2,
+          "team": "us"
+        },
+        {
+          "scorer": "Mei Mei H.",
+          "scorerId": 13,
+          "half": 2,
+          "team": "us"
+        },
+        {
+          "scorer": null,
+          "half": 2,
+          "team": "them"
+        },
+        {
+          "scorer": null,
+          "half": 2,
+          "team": "them"
         }
       ],
       "playerStats": [
         {
           "id": 6,
           "name": "Anaya O.",
-          "minutesPlayed": 50,
-          "secondsPlayed": 3000,
-          "firstHalfSeconds": 1500,
+          "minutesPlayed": 25,
+          "secondsPlayed": 1500,
+          "firstHalfSeconds": 0,
           "secondHalfSeconds": 1500,
           "positionSeconds": {
-            "CM": 3000
+            "CM": 1500
           },
           "positionMinutes": {
-            "CM": 50
+            "CM": 25
           }
         },
         {
@@ -481,30 +515,32 @@
         {
           "id": 16,
           "name": "Camilla C.",
-          "minutesPlayed": 12.6,
-          "secondsPlayed": 757,
-          "firstHalfSeconds": 0,
+          "minutesPlayed": 25.8,
+          "secondsPlayed": 1545,
+          "firstHalfSeconds": 788,
           "secondHalfSeconds": 757,
           "positionSeconds": {
+            "RM": 788,
             "LM": 757
           },
           "positionMinutes": {
+            "RM": 13.1,
             "LM": 12.6
           }
         },
         {
           "id": 9,
           "name": "Cecile H.",
-          "minutesPlayed": 38.9,
-          "secondsPlayed": 2333,
-          "firstHalfSeconds": 1500,
+          "minutesPlayed": 25.8,
+          "secondsPlayed": 1545,
+          "firstHalfSeconds": 712,
           "secondHalfSeconds": 833,
           "positionSeconds": {
-            "RM": 1500,
+            "RM": 712,
             "RD": 833
           },
           "positionMinutes": {
-            "RM": 25,
+            "RM": 11.9,
             "RD": 13.9
           }
         },
@@ -555,12 +591,16 @@
         {
           "id": 2,
           "name": "Harriet B.",
-          "minutesPlayed": 0,
-          "secondsPlayed": 0,
-          "firstHalfSeconds": 0,
+          "minutesPlayed": 25,
+          "secondsPlayed": 1500,
+          "firstHalfSeconds": 1500,
           "secondHalfSeconds": 0,
-          "positionSeconds": {},
-          "positionMinutes": {}
+          "positionSeconds": {
+            "CM": 1500
+          },
+          "positionMinutes": {
+            "CM": 25
+          }
         },
         {
           "id": 18,

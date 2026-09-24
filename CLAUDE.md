@@ -121,10 +121,8 @@ state.players         // active-game players and runtime stats; each entry also 
 state.gameHistory     // completed games
 state.playerPhotos    // id -> base64 data URL
 
-state.subPlans        // planned substitutions: [{ inId, pos }]
-state.planningBenchId
-state.planningPosition
-state.selectedId      // field player selected for immediate sub
+state.subPlans        // pending sub pairs shown in the sub tray: [{ inId, pos }]
+state.subPick         // current sub tap: null | { zone: 'bench', id } | { zone: 'field', pos }
 
 state.lineupDraft     // pre-game lineup assignment
 state.savedChecked    // Set of player ids checked at game-day start
@@ -176,7 +174,7 @@ Profile/game JSON imports are normalized in `js/persistence.js` before they repl
 - When putting a player on the field, set `subInAt`, `position`, and start position timing.
 - When changing goalie assignment, keep `activeGoalieId`, `goalie1Id`, and `goalie2Id` consistent with the current half.
 - Goalie spinner candidates should exclude players who already have positive `GK` time in `gameHistory` when possible; manual selection remains the override path.
-- After substitution changes, clear stale planning state where appropriate: `selectedId`, `planningBenchId`, `planningPosition`, related `subPlans`.
+- After substitution changes, clear `subPick` and drop related `subPlans`.
 - After game-state changes during a live game, call `saveActiveGame()` when persistence matters.
 - After changing score/goals, call `renderScore()` and save active game.
 - After changing roster/photos/settings/history, call the matching save/render function.
@@ -199,7 +197,7 @@ Use `PROJECT_MAP.md` for line ranges.
 - Lineup: `goToLineup`, `showGkPicker`, `renderLineup`, `lineupSlotTap`, `lineupPlayerTap`, `launchGame`
 - Goalies: `showGkPicker`, `openGkSpin`, `openGoaliePicker`, `seasonFreshGoalieCandidates`, `spinWheel`, `stopWheel`, `confirmGkFromSpin`
 - Game render: `renderGame`, `renderField`, `renderGrid`, `computeFairShare`, `getStatus`
-- Substitutions: `handleTap`, `createPlan`, `executeAllPlans`, `makeSub`, `moveFieldPlayerToBench`
+- Substitutions: `pickForSub`, `addSubPair`, `removeSubPair`, `renderSubTray`, `executeAllPlans`, `undoLastSub`, `moveFieldPlayerToBench`
 - Timer: `pauseGame`, `resumeGame`, `tick`, `renderClock`
 - Goals/score: `openGoalModal`, `recordGoal`, `confirmGoal`, `confirmTheirScore`, `renderScore`, `undoLastGoal`
 - Min play / bench assist: `changeMinPlayMinutes`, `isMinPlayAtRisk`

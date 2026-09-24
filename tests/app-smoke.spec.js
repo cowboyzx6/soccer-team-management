@@ -644,3 +644,22 @@ test('undo is cleared at halftime', async ({ page }) => {
   await expect(page.locator('#undo-sub-btn')).toBeHidden();
   expect((await readSubState(page)).onField).toEqual([[1, 'GK'], [3, 'LM'], [4, 'CF']]);
 });
+
+test('sub tray remove button stays inside the tray at phone width', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+
+  const tray = await page.locator('#sub-tray').boundingBox();
+  const remove = await page.locator('#sub-tray .sub-tray-remove').boundingBox();
+  const out = await page.locator('#sub-tray .sub-tray-out').boundingBox();
+  expect(remove.x + remove.width).toBeLessThanOrEqual(tray.x + tray.width + 1);
+  expect(out.x + out.width).toBeLessThanOrEqual(tray.x + tray.width + 1);
+  expect(remove.height).toBeGreaterThanOrEqual(44);
+
+  // Names wrap rather than being cut off with an ellipsis.
+  const clipped = await page.locator('#sub-tray .sub-tray-in, #sub-tray .sub-tray-out')
+    .evaluateAll(els => els.filter(el => el.scrollWidth > el.clientWidth).map(el => el.textContent));
+  expect(clipped).toEqual([]);
+});

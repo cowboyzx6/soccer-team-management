@@ -910,10 +910,8 @@ function initGame() {
   state.currentHalf = 1;
   state.isRunning = false;
   state.gameFinalized = false;
-  state.selectedId = null;
+  state.subPick = null;
   state.subPlans = [];
-  state.planningBenchId = null;
-  state.planningPosition = null;
   state.selectedLineupSlot = null;
   state.halfActionIsEnd = false;
   state.activeGoalieId = state.goalie1Id;

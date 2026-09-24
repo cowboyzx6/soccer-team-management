@@ -176,29 +176,22 @@ export function renderGame() {
   subNowBtn.textContent = `Sub Now (${state.subPlans.length})`;
 
   // Hint text
-  const hint = document.getElementById('sub-hint');
-  if (state.planningBenchId !== null) {
-    const p = state.players.find(p => p.id === state.planningBenchId);
-    hint.textContent = p ? `${p.name} selected \u2014 tap any field slot to swap in` : '';
-    hint.className   = 'sub-hint active';
-    document.getElementById('sub-status').textContent = '\u2193 select position';
-  } else if (state.planningPosition !== null) {
-    hint.textContent = `Tap a bench player to place into ${state.planningPosition}`;
-    hint.className   = 'sub-hint active';
-    document.getElementById('sub-status').textContent = '\u2195 select bench player';
-  } else if (state.selectedId !== null) {
-    const sel = state.players.find(p => p.id === state.selectedId);
-    hint.textContent = sel ? `Tap a bench player to sub in for ${sel.name}` : '';
-    hint.className   = 'sub-hint active';
-    document.getElementById('sub-status').textContent = '\u2195 select bench player';
-  } else if (state.subPlans.length > 0) {
-    hint.textContent = `${state.subPlans.length} sub(s) planned \u2014 press Sub Now to execute`;
-    hint.className   = 'sub-hint active';
-    document.getElementById('sub-status').textContent = '';
+  const hint   = document.getElementById('sub-hint');
+  const status = document.getElementById('sub-status');
+  const pick   = state.subPick;
+  if (pick?.zone === 'bench') {
+    const p = state.players.find(pl => pl.id === pick.id);
+    hint.textContent   = p ? `${p.name} picked \u2014 tap a field spot` : '';
+    hint.className     = 'sub-hint active';
+    status.textContent = '\u2193 tap a field spot';
+  } else if (pick?.zone === 'field') {
+    hint.textContent   = `${pick.pos} picked \u2014 tap a bench player`;
+    hint.className     = 'sub-hint active';
+    status.textContent = '\u2192 tap a bench player';
   } else {
-    hint.textContent = bench.length ? 'Tap a bench player to plan \u00B7 Tap a field slot to sub out' : '';
-    hint.className   = 'sub-hint';
-    document.getElementById('sub-status').textContent = '';
+    hint.textContent   = bench.length ? 'Tap a bench player and a field spot to pair them' : '';
+    hint.className     = 'sub-hint';
+    status.textContent = '';
   }
 
   updateGoalBtn();
@@ -212,7 +205,7 @@ export function handleFieldSlotPointerDown(e) {
   if (e.target.closest('.pos-bench-btn')) return;
 
   const slot = e.target.closest('.pos-slot');
-  if (!slot || !slot.dataset.playerId || state.planningBenchId !== null) return;
+  if (!slot || !slot.dataset.playerId || state.subPick?.zone === 'bench') return;
   const player = state.players.find(p => p.id === parseInt(slot.dataset.playerId, 10));
   if (!player) return;
 
@@ -285,74 +278,49 @@ export function renderField(fairShare) {
     const coords = POSITIONS[pos];
     const player = state.players.find(p => p.onField && p.position === pos);
     const status = player ? getStatus(player, fairShare) : '';
-    const isSelected = player && player.id === state.selectedId;
+    const pick        = state.subPick;
+    const isPicked    = pick?.zone === 'field' && pick.pos === pos;
+    const benchPicked = pick?.zone === 'bench';
 
     const slot = document.createElement('div');
     slot.style.left = coords.x + '%';
     slot.style.top  = coords.y + '%';
     slot.dataset.position = pos;
 
-    // Check for planned incoming player for this position
-    const plan         = state.subPlans.find(pl => pl.pos === pos);
+    // Planned incoming player for this position
+    const plan           = state.subPlans.find(pl => pl.pos === pos);
     const incomingPlayer = plan ? state.players.find(p => p.id === plan.inId) : null;
+    const incomingHtml   = incomingPlayer
+      ? `<div class="pos-incoming">&#8593; ${escHtml(incomingPlayer.name)}</div>`
+      : '';
+    const planClass      = plan ? ' planned-out' : '';
+
+    slot.onclick = e => {
+      if (e.target.closest('.pos-bench-btn')) return;
+      pickForSub('field', pos);
+    };
 
     if (player) {
-      const hasPlan    = !!plan;
-      const isTarget   = state.planningBenchId !== null && !hasPlan;
-      slot.className = `pos-slot slot-filled ${status}${isSelected ? ' selected' : ''}${hasPlan ? ' planned-out' : ''}${isTarget ? ' slot-target' : ''}`;
+      slot.className = `pos-slot slot-filled ${status}${isPicked ? ' selected' : ''}${planClass}${benchPicked ? ' slot-target' : ''}`;
       slot.dataset.playerId = String(player.id);
 
-      // Bench player selected, tap filled slot to queue a planned sub
-      if (state.planningBenchId !== null) {
-        slot.onclick = e => {
-          if (e.target.closest('.pos-bench-btn')) return;
-          createPlan(state.planningBenchId, pos);
-        };
-      } else if (hasPlan) {
-        slot.onclick = e => {
-          if (e.target.closest('.pos-bench-btn')) return;
-          cancelPlanForPos(pos);
-        };
-      } else {
-        slot.onclick = e => {
-          if (e.target.closest('.pos-bench-btn')) return;
-          handleTap(player.id, 'field');
-        };
-      }
-
       const [avatarBg, avatarContent] = avatarParts(player.id, player.name);
-
-      const incomingHtml = incomingPlayer
-        ? `<div class="pos-incoming">&#8593; ${escHtml(incomingPlayer.name)}</div>`
-        : '';
-
       slot.innerHTML = `
         <div class="pos-label">${pos}</div>
         <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
         <div class="pos-name">${escHtml(player.name)}</div>
         <div class="pos-time">${fmt(getPlayedTime(player))}</div>
         ${incomingHtml}
-        <button class="pos-bench-btn" title="Move to bench">\u2193</button>
+        <button class="pos-bench-btn" title="Move to bench">\u2193 bench</button>
       `;
-
     } else {
-      // Empty slot glows when bench player selected or this slot is selected
-      const emptyClass = (state.planningPosition === pos || state.planningBenchId !== null) ? ' slot-sel-empty' : '';
-      slot.className = 'pos-slot slot-empty' + emptyClass;
+      const emptyClass = (isPicked || benchPicked) ? ' slot-sel-empty' : '';
+      slot.className = 'pos-slot slot-empty' + emptyClass + planClass;
       slot.innerHTML = `
         <div class="pos-label">${pos}</div>
         <div class="pos-empty-label">empty</div>
+        ${incomingHtml}
       `;
-      if (state.planningBenchId !== null) {
-        slot.onclick = () => createPlan(state.planningBenchId, pos);
-      } else {
-        slot.onclick = () => {
-          state.planningPosition = state.planningPosition === pos ? null : pos;
-          state.planningBenchId  = null;
-          state.selectedId      = null;
-          renderGame();
-        };
-      }
     }
 
     container.appendChild(slot);
@@ -366,28 +334,28 @@ export function renderGrid(gridId, list, zone, fairShare) {
   list.forEach(player => {
     const status   = getStatus(player, fairShare);
     const time     = getPlayedTime(player);
-    const selected = player.id === state.selectedId ? ' selected' : '';
+    const pick      = state.subPick;
+    const isPicked  = pick?.zone === 'bench' && pick.id === player.id;
+    const isTarget  = pick?.zone === 'field';
 
-    // Plan state for this bench player
-    const plan        = state.subPlans.find(pl => pl.inId === player.id);
-    const isPlanning  = player.id === state.planningBenchId;
-    const planClass   = plan ? ' has-plan' : (isPlanning ? ' planning-active' : '');
+    const plan      = state.subPlans.find(pl => pl.inId === player.id);
+    const planClass = isPicked ? ' planning-active' : (plan ? ' has-plan' : '');
 
     let sublabel = '';
     if (plan) {
       const outPlayer = state.players.find(p => p.onField && p.position === plan.pos);
-      sublabel = `\u2192 ${plan.pos}${outPlayer ? ` \u00B7 ${escHtml(outPlayer.name)} out` : ''}`;
-    } else if (isPlanning) {
-      sublabel = 'tap a position slot...';
+      sublabel = `\u2192 ${escHtml(plan.pos)}${outPlayer ? ` \u00B7 ${escHtml(outPlayer.name)} out` : ''}`;
+    } else if (isPicked) {
+      sublabel = 'tap a field spot...';
     }
 
     const atRisk = isMinPlayAtRisk(player);
     const card = document.createElement('div');
-    card.className = `player-card ${status}${selected}${planClass}${atRisk ? ' at-risk' : ''}`;
+    card.className = `player-card ${status}${planClass}${isTarget ? ' sub-target' : ''}${atRisk ? ' at-risk' : ''}`;
     card.dataset.playerId = String(player.id);
     card.onclick = e => {
       if (e.target.closest('.btn-remove-player')) return;
-      handleTap(player.id, zone);
+      pickForSub(zone, player.id);
     };
     const [avatarBg, avatarContent] = avatarParts(player.id, player.name);
     const benchStreakHtml = player.benchSince != null
@@ -441,10 +409,8 @@ export function confirmRemovePlayer() {
   state.subPlans = state.subPlans.filter(
     pl => pl.inId !== removePlayerId && (!removedPos || pl.pos !== removedPos)
   );
-  if (state.planningBenchId  === removePlayerId) state.planningBenchId  = null;
-  if (state.selectedId       === removePlayerId) state.selectedId       = null;
-  if (state.activeGoalieId   === removePlayerId) state.activeGoalieId   = null;
-  if (state.planningPosition === removedPos)     state.planningPosition = null;
+  if (state.activeGoalieId === removePlayerId) state.activeGoalieId = null;
+  state.subPick = null;
   removePlayerId = null;
   closeRemovePlayerModal();
   renderGame();
@@ -458,76 +424,34 @@ export function closeRemovePlayerModal() {
 // ------------------------------------------------------------
 //  SUBSTITUTION
 // ------------------------------------------------------------
-export function handleTap(id, zone) {
-  if (zone === 'field') {
-    if (state.planningBenchId !== null) return; // field player taps ignored while planning
-    state.selectedId = (state.selectedId === id) ? null : id;
+// One rule for both tap orders: pick one side, then tap the other side to pair.
+export function pickForSub(zone, key) {
+  const pick = state.subPick;
+  if (!pick || pick.zone === zone) {
+    const same = pick && (zone === 'bench' ? pick.id === key : pick.pos === key);
+    state.subPick = same ? null : (zone === 'bench' ? { zone, id: key } : { zone, pos: key });
     renderGame();
-  } else {
-    // Bench tap
-    if (state.planningPosition !== null) {
-      createPlan(id, state.planningPosition);
-      state.planningPosition = null;
-      return;
-    }
-    if (state.selectedId !== null) {
-      // Immediate sub: field player was selected first
-      makeSub(state.selectedId, id);
-      return;
-    }
-
-    // Check if tapping a player who already has a plan removes it (toggle off)
-    const existingPlanIdx = state.subPlans.findIndex(pl => pl.inId === id);
-    if (existingPlanIdx !== -1) {
-      state.subPlans.splice(existingPlanIdx, 1);
-      state.planningBenchId = null;
-      renderGame();
-      saveActiveGame();
-      return;
-    }
-
-    // Toggle planning selection for this bench player
-    state.planningBenchId = (state.planningBenchId === id) ? null : id;
-    renderGame();
+    return;
   }
+  const inId = zone === 'bench' ? key : pick.id;
+  const pos  = zone === 'field' ? key : pick.pos;
+  state.subPick = null;
+  addSubPair(inId, pos);
 }
 
-// Cancel the plan for a specific position (tap planned-out slot with no bench player selected)
-export function cancelPlanForPos(pos) {
-  state.subPlans = state.subPlans.filter(pl => pl.pos !== pos);
+// Queue a pair for Sub Now. One pair per bench player and per position; conflicts are replaced.
+export function addSubPair(inId, pos) {
+  const inn = state.players.find(p => p.id === inId);
+  if (inn && !inn.onField && !inn.leftEarly && Object.prototype.hasOwnProperty.call(POSITIONS, pos)) {
+    state.subPlans = state.subPlans.filter(pl => pl.inId !== inId && pl.pos !== pos);
+    state.subPlans.push({ inId, pos });
+  }
   renderGame();
   saveActiveGame();
 }
 
-// Called when a field position slot is tapped while planningBenchId is set
-export function createPlan(inId, pos) {
-  const inn = state.players.find(p => p.id === inId);
-  if (!inn || inn.onField) {
-    state.planningBenchId = null;
-    renderGame();
-    return;
-  }
-
-  const out = state.players.find(p => p.onField && p.position === pos);
-  if (!out) {
-    // Empty slot: place the bench player directly into the position.
-    inn.onField    = true;
-    inn.subInAt    = state.totalElapsed;
-    inn.position   = pos;
-    inn.benchSince = null;
-    startPositionTimer(inn);
-    if (pos === 'GK') setActiveGoalie(inn.id);
-    state.planningBenchId = null;
-    state.subPlans = state.subPlans.filter(pl => pl.inId !== inId && pl.pos !== pos);
-    renderGame();
-    saveActiveGame();
-    return;
-  }
-
-  // Remove any existing plan for this bench player or this position
-  state.subPlans = state.subPlans.filter(pl => pl.inId !== inId && pl.pos !== pos);
-  state.subPlans.push({ inId, pos });
-  state.planningBenchId = null;
+export function removeSubPair(pos) {
+  state.subPlans = state.subPlans.filter(pl => pl.pos !== pos);
   renderGame();
   saveActiveGame();
 }
@@ -557,12 +481,10 @@ export function executeAllPlans() {
     startPositionTimer(inn);
     if (pos === 'GK') setActiveGoalie(inId);
   });
-  state.subPlans        = [];
-  state.planningBenchId = null;
-  state.planningPosition = null;
-  saveActiveGame();
-  state.selectedId      = null;
+  state.subPlans = [];
+  state.subPick  = null;
   renderGame();
+  saveActiveGame();
 }
 
 export function moveFieldPlayerToBench(id) {
@@ -578,7 +500,7 @@ export function moveFieldPlayerToBench(id) {
   player.position   = null;
   player.benchSince = state.totalElapsed;
   state.subPlans = state.subPlans.filter(pl => pl.inId !== id && pl.pos !== vacatedPos);
-  if (state.selectedId === id) state.selectedId = null;
+  state.subPick = null;
   if (state.activeGoalieId === id) state.activeGoalieId = null;
   renderGame();
   saveActiveGame();
@@ -612,9 +534,7 @@ export function moveFieldPlayerToPosition(fromId, targetPos) {
   const affectedPositions = new Set([fromPos, targetPos].filter(Boolean));
   state.subPlans = state.subPlans.filter(pl => !affectedPositions.has(pl.pos));
 
-  state.selectedId = null;
-  state.planningBenchId = null;
-  state.planningPosition = null;
+  state.subPick = null;
   saveActiveGame();
   renderGame();
 }
@@ -623,41 +543,6 @@ export function setActiveGoalie(id) {
   state.activeGoalieId = id;
   if (state.currentHalf === 1) state.goalie1Id = id;
   else state.goalie2Id = id;
-}
-
-export function makeSub(outId, inId) {
-  const out = state.players.find(p => p.id === outId);
-  const inn = state.players.find(p => p.id === inId);
-  if (!out || !inn) return;
-
-  commitPositionTime(out);
-  if (out.subInAt !== null) {
-    out.totalPlayed += state.totalElapsed - out.subInAt;
-  }
-
-  const outPosition = out.position;
-  out.onField    = false;
-  out.subInAt    = null;
-  out.position   = null;
-  out.benchSince = state.totalElapsed;
-
-  inn.onField    = true;
-  inn.subInAt    = state.totalElapsed;
-  inn.position   = outPosition;
-  inn.benchSince = null;
-  startPositionTimer(inn);
-
-  // If goalie was subbed out, incoming player takes the goalie role
-  if (outId === state.activeGoalieId) {
-    setActiveGoalie(inId);
-  }
-
-  // Clear any pending plans involving the incoming player; they're now on the field
-  state.subPlans = state.subPlans.filter(pl => pl.inId !== inId);
-
-  state.selectedId = null;
-  renderGame();
-  saveActiveGame();
 }
 
 // ------------------------------------------------------------
@@ -864,9 +749,7 @@ export function startSecondHalf(usePlannedLineup = false) {
   state.halfClock        = HALF_DURATION();
   state.halfActionIsEnd  = true;
   state.subPlans         = [];
-  state.planningBenchId  = null;
-  state.planningPosition = null;
-  state.selectedId       = null;
+  state.subPick          = null;
 
   syncGamePhaseUi();
   document.getElementById('pause-btn').textContent  = '\u25B6 START';

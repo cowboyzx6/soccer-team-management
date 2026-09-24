@@ -520,3 +520,62 @@ test('resuming an old saved game drops stale sub plans and picks', async ({ page
   expect(s.plans).toEqual([[4, 'CF']]);
   expect(s.subPick).toBeNull();
 });
+
+test('sub tray lists pairs, removes one with ✕, and Sub Now executes the rest', async ({ page }) => {
+  await startLiveGame(page);
+  await expect(page.locator('#sub-tray')).toBeHidden();
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await benchCard(page, 5).click();
+  await fieldSlot(page, 'LM').click();
+
+  const rows = page.locator('#sub-tray .sub-tray-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('Devon');
+  await expect(rows.first()).toContainText('CF');
+  await expect(rows.first()).toContainText('Blake out');
+  await expect(page.locator('#sub-now-btn')).toHaveText('Sub Now (2)');
+
+  await page.locator('#sub-tray .sub-tray-remove[data-pos="LM"]').click();
+  await expect(rows).toHaveCount(1);
+  expect((await readSubState(page)).plans).toEqual([[4, 'CF']]);
+
+  await page.locator('#sub-now-btn').click();
+  const s = await readSubState(page);
+  expect(s.onField).toEqual([[1, 'GK'], [3, 'LM'], [4, 'CF']]);
+  expect(s.plans).toEqual([]);
+  await expect(page.locator('#sub-tray')).toBeHidden();
+});
+
+test('empty-slot and GK pairs fill on Sub Now', async ({ page }) => {
+  await startLiveGame(page);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'RF').click();
+  await fieldSlot(page, 'GK').click();
+  await benchCard(page, 5).click();
+  await expect(page.locator('#sub-tray .sub-tray-row').first()).toContainText('(empty)');
+
+  await page.locator('#sub-now-btn').click();
+  const s = await readSubState(page);
+  expect(s.onField).toEqual([[2, 'CF'], [3, 'LM'], [4, 'RF'], [5, 'GK']]);
+  expect(s.activeGoalieId).toBe(5);
+  const goalie1Id = await page.evaluate(async () => (await import('/js/state.js')).state.goalie1Id);
+  expect(goalie1Id).toBe(5);
+});
+
+test('sub tray rows are not rebuilt by clock re-renders', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+
+  const survived = await page.evaluate(async () => {
+    const { renderGame } = await import('/js/game.js');
+    const row = document.querySelector('#sub-tray .sub-tray-row');
+    renderGame();
+    renderGame();
+    return row.isConnected;
+  });
+  expect(survived).toBe(true);
+});

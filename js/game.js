@@ -169,11 +169,7 @@ export function renderGame() {
   renderField(fairShare);
   renderGrid('bench-grid', bench, 'bench', fairShare);
 
-  // Sub Now button
-  const subNowWrap = document.getElementById('sub-now-wrap');
-  const subNowBtn  = document.getElementById('sub-now-btn');
-  subNowWrap.style.display = state.subPlans.length > 0 ? 'block' : 'none';
-  subNowBtn.textContent = `Sub Now (${state.subPlans.length})`;
+  renderSubTray();
 
   // Hint text
   const hint   = document.getElementById('sub-hint');
@@ -424,6 +420,35 @@ export function closeRemovePlayerModal() {
 // ------------------------------------------------------------
 //  SUBSTITUTION
 // ------------------------------------------------------------
+let lastSubUndo = null;
+let lastTrayHtml = null;
+
+// Tray of pending pairs + Sub Now + Undo. Rows are only rebuilt when they change,
+// so the once-a-second clock render can't swallow a tap on ✕ or Sub Now.
+export function renderSubTray() {
+  const rows = state.subPlans.map(({ inId, pos }) => {
+    const inn = state.players.find(p => p.id === inId);
+    if (!inn) return '';
+    const out = state.players.find(p => p.onField && p.position === pos);
+    const outHtml = out
+      ? `<span class="sub-tray-out">⇄ ${escHtml(out.name)} out</span>`
+      : '<span class="sub-tray-out">(empty)</span>';
+    return `<div class="sub-tray-row">
+        <span class="sub-tray-in">${escHtml(inn.name)} → ${escHtml(pos)}</span>
+        ${outHtml}
+        <button class="sub-tray-remove" data-pos="${escHtml(pos)}" title="Remove this sub">✕</button>
+      </div>`;
+  }).join('');
+
+  if (rows !== lastTrayHtml) {
+    document.getElementById('sub-tray-list').innerHTML = rows;
+    lastTrayHtml = rows;
+  }
+  document.getElementById('sub-tray').style.display = state.subPlans.length ? 'block' : 'none';
+  document.getElementById('sub-now-btn').textContent = `Sub Now (${state.subPlans.length})`;
+  document.getElementById('undo-sub-btn').style.display = lastSubUndo ? 'block' : 'none';
+}
+
 // One rule for both tap orders: pick one side, then tap the other side to pair.
 export function pickForSub(zone, key) {
   const pick = state.subPick;
@@ -456,12 +481,17 @@ export function removeSubPair(pos) {
   saveActiveGame();
 }
 
+export function undoLastSub() {}
+
 // Execute all planned subs at once
 export function executeAllPlans() {
-  state.subPlans.forEach(({ inId, pos }) => {
+  const plans = state.subPlans.filter(({ inId, pos }) => {
+    const inn = state.players.find(p => p.id === inId);
+    return inn && !inn.onField && !inn.leftEarly && Object.prototype.hasOwnProperty.call(POSITIONS, pos);
+  });
+  plans.forEach(({ inId, pos }) => {
     const inn = state.players.find(p => p.id === inId);
     const out = state.players.find(p => p.onField && p.position === pos);
-    if (!inn || inn.onField) return; // skip if incoming is already on field
 
     if (out) {
       commitPositionTime(out);

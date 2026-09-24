@@ -1854,10 +1854,10 @@
       border: none;
       border-top: 1px solid rgba(255,255,255,0.12);
       border-radius: 0 0 6px 6px;
-      font-size: 0.7rem;
+      font-size: 0.8rem;
       color: rgba(255,255,255,0.65);
       cursor: pointer;
-      padding: 3px 0;
+      padding: 7px 0;
       line-height: 1;
       width: 100%;
       text-align: center;
@@ -1957,3 +1957,65 @@
       letter-spacing: 0.5px;
     }
     .btn-sub-now:active { opacity: 0.8; }
+
+    /* Bench card: valid target while a field spot is picked */
+    .player-card.sub-target {
+      box-shadow: 0 0 0 2px rgba(79,195,247,0.45);
+      border-color: rgba(79,195,247,0.6);
+    }
+
+    /* ===== SUB TRAY ===== */
+    .sub-tray {
+      margin: 0 0 12px;
+    }
+    .sub-tray-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 0 0 10px;
+      margin: 0 0 6px;
+      border: 2px dashed #ff9800;
+      border-radius: 8px;
+      background: rgba(80,55,0,0.25);
+      font-size: 0.88rem;
+    }
+    .sub-tray-in {
+      font-weight: 800;
+      color: var(--text-card-name);
+      white-space: nowrap;
+    }
+    .sub-tray-out {
+      flex: 1;
+      min-width: 0;
+      color: var(--text-card-time);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sub-tray-remove {
+      min-width: 44px;
+      min-height: 44px;
+      background: none;
+      border: none;
+      color: var(--btn-rm-color);
+      font-size: 1.1rem;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .sub-tray-remove:active { background: rgba(255,255,255,0.12); }
+    .sub-tray .btn-sub-now { margin: 0; min-height: 44px; }
+
+    .btn-undo-sub {
+      width: 100%;
+      min-height: 44px;
+      margin: 0 0 12px;
+      background: transparent;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-card-name);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-undo-sub:active { opacity: 0.8; }

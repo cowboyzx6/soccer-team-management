@@ -1,7 +1,7 @@
 # Sub Tray — Unified Substitution Flow
 
 Date: 2026-09-24
-Status: Draft for review
+Status: Implemented on branch `feature/sub-tray` (not yet merged to main)
 
 ## Problem
 
@@ -119,3 +119,21 @@ Playwright additions in `tests/app-smoke.spec.js`:
 5. Re-pairing a bench player to a new position replaces the old pair.
 
 Run `npm.cmd test`; manual check on a phone-width viewport.
+
+## Implementation notes (2026-09-24)
+
+Changes made during implementation, beyond the plan:
+
+- **Phone layout:** at 375px the bench panel is ~110px wide, so tray rows use a two-line grid (`Name → POS` / `⇄ Name out`) with a 36px-wide, 44px-tall ✕ and word wrapping. Covered by the "sub tray remove button stays inside the tray at phone width" test.
+- **Undo drops stale pairs:** after an undo, any pair whose incoming player is back on the field is removed.
+- **Taps during clock ticks:** `tick()` used to rebuild the field and bench every second, which swallowed taps that spanned a redraw. The game screen now calls `holdGameRenders()` on pointerdown and `releaseGameRenders()` on pointerup/cancel/blur, and `tick()` defers `renderGame()` while a pointer is held.
+
+## Open follow-ups
+
+Minor items from the final review, deliberately not done yet:
+
+- `lineup.js` `initGame` doesn't clear `lastSubUndo`. Every current path to a new game goes through `endGame`, which does clear it.
+- `renderSubTray` counts `subPlans.length` for Sub Now, including pairs whose player no longer exists (their rows render empty).
+- Missing tests: Sub Now into GK followed by Undo; Undo after a late arrival; Undo after a field drag-swap.
+- Undo stays available for the whole half with no confirmation, so tapping it by accident much later moves those minutes back. Consider a time limit or a confirm step.
+- Other ideas discussed but not built: auto-suggested subs, and dragging bench cards onto the field.

@@ -36,8 +36,8 @@ The app is a **vanilla HTML/CSS/JavaScript app** with browser-native ES modules.
 - Track field players, bench players, and active goalkeeper.
 - Track total playing time per player.
 - Track position-specific time for LF, CF, RF, LM, CM, RM, LD, RD, and GK.
-- Stage substitutions ahead of time and execute planned subs together.
-- Sub immediately by selecting a field player and then a bench player.
+- Pair a bench player with a field spot (tap them in either order) into a sub tray, then make every pair at once with **Sub Now**.
+- Remove any single pending pair with its ✕, and undo the last Sub Now or send-to-bench with **↶ Undo last sub**.
 - Move a field player directly to the bench.
 - Add late-arriving roster players during a game.
 - Mark players as removed from the current game.
@@ -295,12 +295,16 @@ showSeasonSummary()
 
 ### Substitutions
 
-Substitution flow supports both planned and immediate substitutions:
+Every substitution follows one rule, so tap order never changes the outcome:
 
-- Planned: select a bench player, select a field position, then press **Sub Now**.
-- Immediate: select a field player, then select a bench player.
+- Tap a bench player and a field spot (filled or empty), in either order. The pair goes into the sub tray above the bench; nothing on the field changes yet.
+- Each tray row has a ✕ to remove just that pair. Pairing a player or spot again replaces its old pair.
+- **Sub Now** makes every pair at once.
+- **↶ Undo last sub** reverses the last Sub Now or ↓ send-to-bench as if it never happened (play time, position time and goalie role are restored, and undone pairs return to the tray). It clears at halftime, end of game, a late arrival, a player removal, or a field drag-swap.
 
-Planned substitutions are stored in `subPlans` until executed.
+The current tap is `state.subPick`; pending pairs are stored in `subPlans` (persisted with the active game). The undo snapshot lives only in memory. While a finger is held on the game screen, the once-a-second clock redraw of the field and bench is deferred so taps aren't lost.
+
+Design and plan: `docs/superpowers/specs/2026-09-24-sub-tray-design.md`, `docs/superpowers/plans/2026-09-24-sub-tray.md`.
 
 ### Timing
 

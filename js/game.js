@@ -407,6 +407,7 @@ export function confirmRemovePlayer() {
   );
   if (state.activeGoalieId === removePlayerId) state.activeGoalieId = null;
   state.subPick = null;
+  lastSubUndo = null;
   removePlayerId = null;
   closeRemovePlayerModal();
   renderGame();
@@ -481,7 +482,54 @@ export function removeSubPair(pos) {
   saveActiveGame();
 }
 
-export function undoLastSub() {}
+function snapshotForUndo(ids) {
+  return {
+    players: ids
+      .map(id => state.players.find(p => p.id === id))
+      .filter(Boolean)
+      .map(p => ({
+        id:            p.id,
+        onField:       p.onField,
+        position:      p.position,
+        subInAt:       p.subInAt,
+        totalPlayed:   p.totalPlayed,
+        benchSince:    p.benchSince ?? null,
+        positionStart: p.positionStart,
+        positionTime:  { ...p.positionTime },
+      })),
+    activeGoalieId: state.activeGoalieId,
+    goalie1Id:      state.goalie1Id,
+    goalie2Id:      state.goalie2Id,
+    subPlans:       [],
+  };
+}
+
+// Puts every player touched by the last Sub Now / ↓ bench back exactly as they were,
+// so time since the sub counts for the players who were on the field before it.
+export function undoLastSub() {
+  const snap = lastSubUndo;
+  if (!snap) return;
+  lastSubUndo = null;
+
+  snap.players.forEach(saved => {
+    const p = state.players.find(pl => pl.id === saved.id);
+    if (p) Object.assign(p, saved, { positionTime: { ...saved.positionTime } });
+  });
+  state.activeGoalieId = snap.activeGoalieId;
+  state.goalie1Id      = snap.goalie1Id;
+  state.goalie2Id      = snap.goalie2Id;
+
+  // Put the executed pairs back in the tray; drop newer pairs that clash with them.
+  const inIds = new Set(snap.subPlans.map(pl => pl.inId));
+  const poses = new Set(snap.subPlans.map(pl => pl.pos));
+  state.subPlans = [
+    ...state.subPlans.filter(pl => !inIds.has(pl.inId) && !poses.has(pl.pos)),
+    ...snap.subPlans,
+  ];
+  state.subPick = null;
+  renderGame();
+  saveActiveGame();
+}
 
 // Execute all planned subs at once
 export function executeAllPlans() {
@@ -489,6 +537,14 @@ export function executeAllPlans() {
     const inn = state.players.find(p => p.id === inId);
     return inn && !inn.onField && !inn.leftEarly && Object.prototype.hasOwnProperty.call(POSITIONS, pos);
   });
+  if (plans.length) {
+    const outIds = plans
+      .map(({ pos }) => state.players.find(p => p.onField && p.position === pos))
+      .filter(Boolean)
+      .map(p => p.id);
+    lastSubUndo = snapshotForUndo([...plans.map(pl => pl.inId), ...outIds]);
+    lastSubUndo.subPlans = plans.map(pl => ({ ...pl }));
+  }
   plans.forEach(({ inId, pos }) => {
     const inn = state.players.find(p => p.id === inId);
     const out = state.players.find(p => p.onField && p.position === pos);
@@ -520,6 +576,7 @@ export function executeAllPlans() {
 export function moveFieldPlayerToBench(id) {
   const player = state.players.find(p => p.id === id);
   if (!player || !player.onField) return;
+  lastSubUndo = snapshotForUndo([id]);
   const vacatedPos = player.position;
   commitPositionTime(player);
   if (player.subInAt !== null) {
@@ -565,6 +622,7 @@ export function moveFieldPlayerToPosition(fromId, targetPos) {
   state.subPlans = state.subPlans.filter(pl => !affectedPositions.has(pl.pos));
 
   state.subPick = null;
+  lastSubUndo = null;
   saveActiveGame();
   renderGame();
 }
@@ -621,6 +679,7 @@ export function confirmLateArrival(rosterId) {
     positionStart: null,
     benchSince:    state.totalElapsed,
   });
+  lastSubUndo = null;
   closeLateModal();
   renderGame();
   saveActiveGame();
@@ -631,6 +690,8 @@ export function confirmLateArrival(rosterId) {
 // ------------------------------------------------------------
 export function handleHalfEnd() {
   pauseGame();
+  lastSubUndo = null;
+  renderSubTray();
 
   const title     = document.getElementById('half-modal-title');
   const body      = document.getElementById('half-modal-body');
@@ -780,6 +841,7 @@ export function startSecondHalf(usePlannedLineup = false) {
   state.halfActionIsEnd  = true;
   state.subPlans         = [];
   state.subPick          = null;
+  lastSubUndo            = null;
 
   syncGamePhaseUi();
   document.getElementById('pause-btn').textContent  = '\u25B6 START';
@@ -884,6 +946,7 @@ export function confirmGoal(scorerName, scorerId = null) {
 }
 
 export function endGame() {
+  lastSubUndo = null;
   closeModal('half-modal');
   pauseGame();
   state.gameFinalized = true;

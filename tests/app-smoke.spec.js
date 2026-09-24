@@ -579,3 +579,68 @@ test('sub tray rows are not rebuilt by clock re-renders', async ({ page }) => {
   });
   expect(survived).toBe(true);
 });
+
+test('undo after Sub Now restores players, play time and the pairs', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+  await expect(page.locator('#undo-sub-btn')).toBeVisible();
+
+  // Clock runs two minutes before the coach notices.
+  await page.evaluate(async () => {
+    const [{ state }, { renderGame }] = await Promise.all([import('/js/state.js'), import('/js/game.js')]);
+    state.totalElapsed = 120;
+    renderGame();
+  });
+  await page.locator('#undo-sub-btn').click();
+
+  const s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.plans).toEqual([[4, 'CF']]);
+  await expect(page.locator('#undo-sub-btn')).toBeHidden();
+
+  const times = await page.evaluate(async () => {
+    const [{ state }, { getPlayedTime }] = await Promise.all([import('/js/state.js'), import('/js/game.js')]);
+    const byId = id => state.players.find(p => p.id === id);
+    return {
+      blake: getPlayedTime(byId(2)),
+      blakePosStart: byId(2).positionStart,
+      devon: getPlayedTime(byId(4)),
+      devonBenchSince: byId(4).benchSince,
+      devonPosTime: byId(4).positionTime,
+    };
+  });
+  expect(times).toEqual({ blake: 120, blakePosStart: 0, devon: 0, devonBenchSince: 0, devonPosTime: {} });
+});
+
+test('undo after sending the goalie to the bench restores the goalie', async ({ page }) => {
+  await startLiveGame(page);
+  await fieldSlot(page, 'GK').click();
+  await fieldSlot(page, 'GK').locator('.pos-bench-btn').click();
+
+  let s = await readSubState(page);
+  expect(s.onField).toEqual([[2, 'CF'], [3, 'LM']]);
+  expect(s.activeGoalieId).toBeNull();
+
+  await page.locator('#undo-sub-btn').click();
+  s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.activeGoalieId).toBe(1);
+});
+
+test('undo is cleared at halftime', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+  await expect(page.locator('#undo-sub-btn')).toBeVisible();
+
+  await page.evaluate(async () => {
+    const { handleHalfEnd, undoLastSub } = await import('/js/game.js');
+    handleHalfEnd();
+    undoLastSub();
+  });
+  await expect(page.locator('#undo-sub-btn')).toBeHidden();
+  expect((await readSubState(page)).onField).toEqual([[1, 'GK'], [3, 'LM'], [4, 'CF']]);
+});

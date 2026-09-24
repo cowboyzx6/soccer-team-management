@@ -236,7 +236,7 @@ export function updateStartBtn() {
   const hasOpponent = document.getElementById('opponent-input').value.trim().length > 0;
   document.getElementById('start-btn').disabled = n < 1 || !hasOpponent;
   const planBtn = document.getElementById('plan-ahead-btn');
-  if (planBtn) planBtn.disabled = n < 1 || !hasOpponent;
+  if (planBtn) planBtn.disabled = n < 1;
   updatePlanAheadStatus();
 }
 

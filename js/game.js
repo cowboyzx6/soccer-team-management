@@ -744,12 +744,6 @@ export function handleHalfEnd() {
     confirmBtn.className          = 'btn btn-green';
     state.halfActionIsEnd               = false;
     document.getElementById('half-end-early-btn').style.display = 'block';
-
-    const usePlanBtn = document.getElementById('half-use-plan-btn');
-    if (usePlanBtn) {
-      const hasHalf2Plan = !!(state.gamePlan && state.gamePlan.half2);
-      usePlanBtn.style.display = hasHalf2Plan ? 'block' : 'none';
-    }
     document.getElementById('half-edit-lineup-btn').style.display = 'block';
   } else {
     title.textContent = 'End Game?';
@@ -758,8 +752,6 @@ export function handleHalfEnd() {
     confirmBtn.className   = 'btn btn-red';
     state.halfActionIsEnd        = true;
     document.getElementById('half-end-early-btn').style.display = 'none';
-    const usePlanBtn = document.getElementById('half-use-plan-btn');
-    if (usePlanBtn) usePlanBtn.style.display = 'none';
     document.getElementById('half-edit-lineup-btn').style.display = 'none';
   }
 
@@ -770,14 +762,8 @@ export function confirmHalfAction() {
   if (state.halfActionIsEnd) {
     endGame();
   } else {
-    startSecondHalf(false);
+    startSecondHalf(!!(state.gamePlan && state.gamePlan.half2));
   }
-}
-
-// Applies the pre-planned Half 2 lineup instead of the normal goalie-continuity
-// behavior. Only reachable from the halftime modal when a Half 2 plan exists.
-export function useHalf2Plan() {
-  startSecondHalf(true);
 }
 
 export function closeHalfModal() {

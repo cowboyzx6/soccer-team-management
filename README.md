@@ -135,7 +135,7 @@ When a pending plan is included, the filename identifies it with the planned gam
 
 ### Restore Backup
 
-Imports a previously downloaded team backup JSON file and restores its profile data. A saved lineup plan is activated only when its game number matches the next unplayed game, so a completed game's plan cannot become the default for a later game.
+Imports a previously downloaded team backup JSON file and restores its profile data. When the backup contains a plan for the next unplayed game, the app offers to restore its planned attendees, opponent, date, and both lineups. A completed game's plan cannot become the default for a later game.
 Imported profiles are validated and normalized before replacing local data: roster ids and names, settings, saved games, scores, goals, player stats, position totals, planned lineups, and embedded photos are checked before they are stored. Restoring a backup rebuilds the photo map from that backup so old local photos cannot leak into the restored team.
 
 ### Export Game JSON

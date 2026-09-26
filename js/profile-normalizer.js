@@ -76,7 +76,25 @@ export function normalizeGamePlan(value, {
   if (!lineups) return null;
   const gameNumber = toPlayerId(value.gameNumber) ?? toPlayerId(defaultGameNumber);
   if (gameNumber === null) return null;
-  return { gameNumber, ...lineups };
+  const lineupPlayerIds = Object.values(lineups).flatMap(lineup => Object.values(lineup));
+  const playerIds = Array.isArray(value.playerIds)
+    ? value.playerIds.map(toPlayerId).filter(id => id !== null)
+    : [];
+  const uniquePlayerIds = [...new Set(playerIds)]
+    .filter(id => !validPlayerIds || validPlayerIds.has(id));
+  const plannedPlayerIds = uniquePlayerIds.length
+    ? uniquePlayerIds
+    : [...new Set(lineupPlayerIds)];
+  const date = cleanText(value.date, 20);
+  const opponent = cleanText(value.opponent, 30);
+
+  return {
+    gameNumber,
+    ...(date ? { date } : {}),
+    ...(opponent ? { opponent } : {}),
+    playerIds: plannedPlayerIds,
+    ...lineups,
+  };
 }
 
 function normalizeGoal(goal) {

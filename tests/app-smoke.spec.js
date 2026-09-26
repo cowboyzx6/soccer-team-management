@@ -164,21 +164,58 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
     }],
     gamePlan: {
       gameNumber: 2,
+      date: '2026-09-26',
+      opponent: 'Blue Team',
+      playerIds: [1, 2, 99],
       half1: { GK: 1, CF: 2, BAD: 1 },
       half2: { GK: 2, CF: 1, RF: 99 },
     },
   }), 'utf8');
 
+  page.once('dialog', dialog => dialog.accept());
   await page.setInputFiles('#import-file-input', profilePath);
   await expect(page.locator('#game-number-label')).toHaveText('Game 2');
 
   const storedPlan = await page.evaluate(() => JSON.parse(localStorage.getItem('soccerGamePlan') || 'null'));
   expect(storedPlan).toEqual({
     gameNumber: 2,
+    date: '2026-09-26',
+    opponent: 'Blue Team',
+    playerIds: [1, 2],
     half1: { GK: 1, CF: 2 },
     half2: { GK: 2, CF: 1 },
   });
   await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineups planned for both halves');
+  await expect(page.locator('#opponent-input')).toHaveValue('Blue Team');
+  await expect(page.locator('#game-date-input')).toHaveValue('2026-09-26');
+  await expect(page.locator('#tile-1')).toHaveClass(/selected/);
+  await expect(page.locator('#tile-2')).toHaveClass(/selected/);
+});
+
+test('restore can decline an upcoming game plan while keeping profile data', async ({ page }, testInfo) => {
+  const profilePath = testInfo.outputPath('decline-planned-game.json');
+  await fs.writeFile(profilePath, JSON.stringify({
+    teamName: 'Oyster Blueberries',
+    halfMinutes: 25,
+    roster: [{ id: 1, name: 'Avery' }],
+    games: [],
+    gamePlan: {
+      gameNumber: 1,
+      date: '2026-09-26',
+      opponent: 'Blue Team',
+      playerIds: [1],
+      half1: { GK: 1 },
+      half2: { GK: 1 },
+    },
+  }), 'utf8');
+
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.setInputFiles('#import-file-input', profilePath);
+  await expect(page.locator('#app-title-name')).toHaveText('Oyster Blueberries');
+
+  expect(await page.evaluate(() => localStorage.getItem('soccerGamePlan'))).toBeNull();
+  await expect(page.locator('#opponent-input')).toHaveValue('');
+  await expect(page.locator('#tile-1')).not.toHaveClass(/selected/);
 });
 
 test('restore does not activate a plan for an already completed game', async ({ page }, testInfo) => {
@@ -240,6 +277,7 @@ test('profile backup includes only a pending plan and archives plans with comple
 
   expect(result.pendingProfile.gamePlan).toEqual({
     gameNumber: 2,
+    playerIds: [1],
     half1: { GK: 1 },
     half2: { GK: 1 },
   });
@@ -272,6 +310,46 @@ test('team backup with a pending plan uses a planned game filename', async ({ pa
   expect(download.suggestedFilename()).toMatch(
     /^Oyster_Blueberries_2026-Fall_Game_2_Planned_2026-09-26_\d{4}\.json$/
   );
+});
+
+test('one-player planning backup includes attendance opponent and date', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
+    localStorage.setItem('soccerGameHistory', JSON.stringify([{
+      date: '2026-09-19', opponent: 'Silver Dolphins', ourScore: 1, theirScore: 0, goals: [], playerStats: [],
+    }]));
+  });
+  await page.reload();
+
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#plan-ahead-btn').click();
+
+  for (let half = 1; half <= 2; half++) {
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+    await page.locator('#launch-btn').click();
+  }
+
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#backup-team-btn').click();
+  const download = await downloadPromise;
+  const downloadedPath = await download.path();
+  expect(downloadedPath).not.toBeNull();
+  const profile = JSON.parse(await fs.readFile(downloadedPath, 'utf8'));
+
+  expect(profile.gamePlan).toEqual({
+    gameNumber: 2,
+    date: '2026-09-26',
+    opponent: 'Blue Team',
+    playerIds: [1],
+    half1: { GK: 1 },
+    half2: { GK: 1 },
+  });
 });
 
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {

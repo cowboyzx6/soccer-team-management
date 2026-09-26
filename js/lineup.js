@@ -126,6 +126,9 @@ export function advancePrePlan() {
   const posMap = buildPositionMapFromDraft();
   state.gamePlan = state.gamePlan || {};
   state.gamePlan.gameNumber = state.gameHistory.length + 1;
+  state.gamePlan.date = state.gameDate;
+  state.gamePlan.opponent = state.opponentName;
+  state.gamePlan.playerIds = [...state.savedChecked];
 
   if (state.prePlanHalf === 1) {
     state.gamePlan.half1 = posMap;

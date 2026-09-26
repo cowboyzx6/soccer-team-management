@@ -53,7 +53,12 @@ export function loadGamePlan() {
       validPlayerIds: new Set(state.roster.map(p => p.id)),
       defaultGameNumber: state.gameHistory.length + 1,
     });
-    if (state.gamePlan) saveGamePlan();
+    if (state.gamePlan) {
+      state.gameDate = state.gamePlan.date || state.gameDate;
+      state.opponentName = state.gamePlan.opponent || state.opponentName;
+      state.savedChecked = new Set(state.gamePlan.playerIds || []);
+      saveGamePlan();
+    }
     else localStorage.removeItem('soccerGamePlan');
   } catch {
     state.gamePlan = null;
@@ -195,8 +200,17 @@ export function buildProfile(includeGameRecord) {
 
   const nextGameNumber = profile.games.length + 1;
   if (state.gamePlan && state.gamePlan.gameNumber === nextGameNumber) {
+    const lineupPlayerIds = [
+      ...Object.values(state.gamePlan.half1 || {}),
+      ...Object.values(state.gamePlan.half2 || {}),
+    ];
     profile.gamePlan = {
       gameNumber: state.gamePlan.gameNumber,
+      ...(state.gamePlan.date || state.gameDate ? { date: state.gamePlan.date || state.gameDate } : {}),
+      ...(state.gamePlan.opponent || state.opponentName ? { opponent: state.gamePlan.opponent || state.opponentName } : {}),
+      playerIds: state.gamePlan.playerIds && state.gamePlan.playerIds.length
+        ? [...state.gamePlan.playerIds]
+        : [...new Set(lineupPlayerIds)],
       ...(state.gamePlan.half1 ? { half1: { ...state.gamePlan.half1 } } : {}),
       ...(state.gamePlan.half2 ? { half2: { ...state.gamePlan.half2 } } : {}),
     };
@@ -224,7 +238,7 @@ export function exportProfile(includeGameRecord = false, forceGameFilename = fal
     const dateStr = latestGame.date || today;
     filename = `${prefix}_Game_${gameNumber}_${dateStr}_${timeStr}.json`;
   } else if (profile.gamePlan) {
-    const dateStr = state.gameDate || today;
+    const dateStr = profile.gamePlan.date || state.gameDate || today;
     const plannedSeason = seasonLabel(dateStr);
     const plannedPrefix = plannedSeason ? `${safeName}_${plannedSeason}` : prefix;
     filename = `${plannedPrefix}_Game_${profile.gamePlan.gameNumber}_Planned_${dateStr}_${timeStr}.json`;
@@ -360,9 +374,23 @@ export function initEventListeners() {
         state.gameHistory = profile.games;
         state.roster      = profile.roster.map(p => ({ id: p.id, name: p.name }));
         const nextGameNumber = state.gameHistory.length + 1;
-        state.gamePlan = profile.gamePlan && profile.gamePlan.gameNumber === nextGameNumber
+        const pendingPlan = profile.gamePlan && profile.gamePlan.gameNumber === nextGameNumber
           ? profile.gamePlan
           : null;
+        const planDetails = pendingPlan
+          ? [
+              `Game ${pendingPlan.gameNumber}`,
+              pendingPlan.opponent ? `vs ${pendingPlan.opponent}` : '',
+              pendingPlan.date ? `on ${pendingPlan.date}` : '',
+            ].filter(Boolean).join(' ')
+          : '';
+        const restorePlan = pendingPlan
+          ? confirm(`This backup includes a saved plan for ${planDetails}.\n\nRestore its planned players, opponent, date, and both lineups?`)
+          : false;
+        state.gamePlan = restorePlan ? pendingPlan : null;
+        state.savedChecked = new Set(restorePlan ? pendingPlan.playerIds : []);
+        state.opponentName = restorePlan ? pendingPlan.opponent || '' : '';
+        state.gameDate = restorePlan ? pendingPlan.date || '' : '';
         state.nextId      = state.roster.length ? Math.max(...state.roster.map(p => p.id)) + 1 : 1;
         const importedPhotos = {};
 
@@ -389,7 +417,11 @@ export function initEventListeners() {
         clearActiveGame();
 
         applySettingsToUi();
-        document.dispatchEvent(new CustomEvent('profile:imported'));
+        const opponentInput = document.getElementById('opponent-input');
+        if (opponentInput) opponentInput.value = '';
+        document.dispatchEvent(new CustomEvent('profile:imported', {
+          detail: { restoredPlan: restorePlan },
+        }));
       } catch (err) {
         alert(`Invalid profile file. ${err.message}`);
       }

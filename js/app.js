@@ -142,8 +142,8 @@ document.addEventListener('league-csv:imported', () => {
   renderGameDayCheckboxes();
 });
 
-document.addEventListener('profile:imported', () => {
-  renderRoster();
+document.addEventListener('profile:imported', e => {
+  renderRoster(!!e.detail?.restoredPlan);
   updateStartBtn();
 });
 
@@ -164,7 +164,7 @@ loadGameHistory();
 loadRoster();
 loadGamePlan();
 renderTeamSetupRoster();
-renderGameDayCheckboxes();
+renderGameDayCheckboxes(!!state.gamePlan);
 updatePlanAheadStatus();
 checkForActiveGame();
 

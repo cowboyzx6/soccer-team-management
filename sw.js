@@ -1,9 +1,11 @@
-const CACHE_VERSION = '1.26269.2';
+const CACHE_VERSION = '1.26269.3';
 const CACHE = `stm-${CACHE_VERSION}`;
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './assets/app-icon.svg',
+  './assets/apple-touch-icon.png',
   './css/styles.css',
   './js/app.js',
   './js/game.js',

@@ -131,6 +131,7 @@ Important limitations:
 ### Backup Team
 
 Downloads a JSON backup of the full team profile, including roster, photos, settings, saved game history, and any lineup plan saved for the next unplayed game. Completed game records retain the planned lineups used for that game.
+When a pending plan is included, the filename identifies it with the planned game number, game date, and download time, for example `Oyster_Blueberries_2026-Fall_Game_3_Planned_2026-09-26_0930.json`.
 
 ### Restore Backup
 

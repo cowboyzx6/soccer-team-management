@@ -250,6 +250,30 @@ test('profile backup includes only a pending plan and archives plans with comple
   expect(result.completedProfile.gamePlan).toBeUndefined();
 });
 
+test('team backup with a pending plan uses a planned game filename', async ({ page }) => {
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.teamName = 'Oyster Blueberries';
+    state.gameDate = '2026-09-26';
+    state.roster = [{ id: 1, name: 'Avery' }];
+    state.gameHistory = [{
+      date: '2026-09-19', opponent: 'Silver Dolphins', ourScore: 1, theirScore: 0, goals: [], playerStats: [],
+    }];
+    state.gamePlan = { gameNumber: 2, half1: { GK: 1 }, half2: { GK: 1 } };
+  });
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.evaluate(async () => {
+    const { exportProfile } = await import('/js/persistence.js');
+    exportProfile();
+  });
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(
+    /^Oyster_Blueberries_2026-Fall_Game_2_Planned_2026-09-26_\d{4}\.json$/
+  );
+});
+
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));

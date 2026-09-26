@@ -213,15 +213,21 @@ export function exportProfile(includeGameRecord = false, forceGameFilename = fal
   const profile  = buildProfile(includeGameRecord);
   const safeName = (state.teamName || 'team').replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   const prefix   = profile.season ? `${safeName}_${profile.season}` : safeName;
+  const now      = new Date();
+  const pad      = n => String(n).padStart(2, '0');
+  const today    = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timeStr  = `${pad(now.getHours())}${pad(now.getMinutes())}`;
   let filename;
   if (includeGameRecord || forceGameFilename) {
-    const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
     const latestGame = profile.games[profile.games.length - 1] || {};
     const gameNumber = profile.games.length || 1;
-    const dateStr = latestGame.date || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const dateStr = latestGame.date || today;
     filename = `${prefix}_Game_${gameNumber}_${dateStr}_${timeStr}.json`;
+  } else if (profile.gamePlan) {
+    const dateStr = state.gameDate || today;
+    const plannedSeason = seasonLabel(dateStr);
+    const plannedPrefix = plannedSeason ? `${safeName}_${plannedSeason}` : prefix;
+    filename = `${plannedPrefix}_Game_${profile.gamePlan.gameNumber}_Planned_${dateStr}_${timeStr}.json`;
   } else {
     filename = `${prefix}-profile.json`;
   }

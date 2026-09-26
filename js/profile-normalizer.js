@@ -40,6 +40,45 @@ function normalizePositionSeconds(value) {
   );
 }
 
+function normalizeLineupMap(value, validPlayerIds = null) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const lineup = {};
+  const assignedPlayerIds = new Set();
+  Object.entries(value).forEach(([position, rawPlayerId]) => {
+    const playerId = toPlayerId(rawPlayerId);
+    if (!VALID_POSITIONS.has(position) || playerId === null) return;
+    if (validPlayerIds && !validPlayerIds.has(playerId)) return;
+    if (assignedPlayerIds.has(playerId)) return;
+    lineup[position] = playerId;
+    assignedPlayerIds.add(playerId);
+  });
+
+  return Object.keys(lineup).length ? lineup : null;
+}
+
+function normalizePlannedLineups(value, validPlayerIds = null) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const half1 = normalizeLineupMap(value.half1, validPlayerIds);
+  const half2 = normalizeLineupMap(value.half2, validPlayerIds);
+  if (!half1 && !half2) return null;
+  return {
+    ...(half1 ? { half1 } : {}),
+    ...(half2 ? { half2 } : {}),
+  };
+}
+
+export function normalizeGamePlan(value, {
+  validPlayerIds = null,
+  defaultGameNumber = null,
+} = {}) {
+  const lineups = normalizePlannedLineups(value, validPlayerIds);
+  if (!lineups) return null;
+  const gameNumber = toPlayerId(value.gameNumber) ?? toPlayerId(defaultGameNumber);
+  if (gameNumber === null) return null;
+  return { gameNumber, ...lineups };
+}
+
 function normalizeGoal(goal) {
   if (!goal || typeof goal !== 'object') return null;
   const team = goal.team === 'them' ? 'them' : goal.team === 'us' ? 'us' : null;
@@ -87,7 +126,7 @@ function normalizeGameRecord(game) {
       }).filter(Boolean)
     : [];
 
-  return {
+  const normalized = {
     date: cleanText(game.date, 20),
     opponent: cleanText(game.opponent, 30),
     ourScore: toNonNegativeInt(game.ourScore),
@@ -95,6 +134,9 @@ function normalizeGameRecord(game) {
     goals: Array.isArray(game.goals) ? game.goals.map(normalizeGoal).filter(Boolean) : [],
     playerStats,
   };
+  const plannedLineups = normalizePlannedLineups(game.plannedLineups);
+  if (plannedLineups) normalized.plannedLineups = plannedLineups;
+  return normalized;
 }
 
 export function normalizeProfile(profile, {
@@ -140,6 +182,9 @@ export function normalizeProfile(profile, {
     ? profile.games.map(normalizeGameRecord).filter(Boolean)
     : [];
 
+  const validPlayerIds = uniqueRoster ? new Set(uniqueRoster.map(p => p.id)) : null;
+  const gamePlan = normalizeGamePlan(profile.gamePlan, { validPlayerIds });
+
   if (requireGames && games.length === 0) {
     throw new Error('Profile does not contain any valid game records.');
   }
@@ -149,5 +194,6 @@ export function normalizeProfile(profile, {
     halfMinutes: normalizeHalfMinutes(profile.halfMinutes, defaultHalfMinutes),
     roster: uniqueRoster,
     games,
+    gamePlan,
   };
 }

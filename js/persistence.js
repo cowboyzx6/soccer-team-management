@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
-import { normalizeProfile } from './profile-normalizer.js';
+import { normalizeGamePlan, normalizeProfile } from './profile-normalizer.js';
 
 
 export function saveSettings() {
@@ -38,6 +38,7 @@ export function loadSettings() {
 // browser entirely before the game even starts.
 export function saveGamePlan() {
   if (state.gamePlan) {
+    if (!state.gamePlan.gameNumber) state.gamePlan.gameNumber = state.gameHistory.length + 1;
     localStorage.setItem('soccerGamePlan', JSON.stringify(state.gamePlan));
   } else {
     localStorage.removeItem('soccerGamePlan');
@@ -48,7 +49,12 @@ export function loadGamePlan() {
   const raw = localStorage.getItem('soccerGamePlan');
   if (!raw) { state.gamePlan = null; return; }
   try {
-    state.gamePlan = JSON.parse(raw);
+    state.gamePlan = normalizeGamePlan(JSON.parse(raw), {
+      validPlayerIds: new Set(state.roster.map(p => p.id)),
+      defaultGameNumber: state.gameHistory.length + 1,
+    });
+    if (state.gamePlan) saveGamePlan();
+    else localStorage.removeItem('soccerGamePlan');
   } catch {
     state.gamePlan = null;
     localStorage.removeItem('soccerGamePlan');
@@ -130,7 +136,7 @@ export function checkForActiveGame() {
 }
 
 export function buildGameRecord() {
-  return {
+  const gameRecord = {
     date:       state.gameDate || new Date().toISOString().slice(0, 10),
     opponent:   state.opponentName,
     ourScore:   state.scoreUs,
@@ -149,6 +155,17 @@ export function buildGameRecord() {
       ),
     })),
   };
+  const currentGameNumber = state.gameHistory.length + 1;
+  if (state.gamePlan && state.gamePlan.gameNumber === currentGameNumber) {
+    const { half1, half2 } = state.gamePlan;
+    if (half1 || half2) {
+      gameRecord.plannedLineups = {
+        ...(half1 ? { half1: { ...half1 } } : {}),
+        ...(half2 ? { half2: { ...half2 } } : {}),
+      };
+    }
+  }
+  return gameRecord;
 }
 
 // Spring = Jan–Jun, Fall = Jul–Dec, e.g. '2026-05-30' -> '2026-Spring'.
@@ -174,6 +191,15 @@ export function buildProfile(includeGameRecord) {
 
   if (includeGameRecord) {
     profile.games.push(buildGameRecord());
+  }
+
+  const nextGameNumber = profile.games.length + 1;
+  if (state.gamePlan && state.gamePlan.gameNumber === nextGameNumber) {
+    profile.gamePlan = {
+      gameNumber: state.gamePlan.gameNumber,
+      ...(state.gamePlan.half1 ? { half1: { ...state.gamePlan.half1 } } : {}),
+      ...(state.gamePlan.half2 ? { half2: { ...state.gamePlan.half2 } } : {}),
+    };
   }
 
   const latestGame = profile.games[profile.games.length - 1];
@@ -327,6 +353,10 @@ export function initEventListeners() {
         state.halfMinutes = profile.halfMinutes;
         state.gameHistory = profile.games;
         state.roster      = profile.roster.map(p => ({ id: p.id, name: p.name }));
+        const nextGameNumber = state.gameHistory.length + 1;
+        state.gamePlan = profile.gamePlan && profile.gamePlan.gameNumber === nextGameNumber
+          ? profile.gamePlan
+          : null;
         state.nextId      = state.roster.length ? Math.max(...state.roster.map(p => p.id)) + 1 : 1;
         const importedPhotos = {};
 
@@ -349,6 +379,7 @@ export function initEventListeners() {
 
         saveSettings();
         saveGameHistory();
+        saveGamePlan();
         clearActiveGame();
 
         applySettingsToUi();

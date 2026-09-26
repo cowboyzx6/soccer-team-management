@@ -363,10 +363,12 @@ export function executeStartNewSeason() {
   state.scoreUs      = 0;
   state.scoreThem    = 0;
   state.gameFinalized = false;
+  state.gamePlan      = null;
 
   saveRoster();
   saveGameHistory();
   saveSettings();
+  saveGamePlan();
   clearActiveGame();
   localStorage.removeItem('playerPhotos');
 

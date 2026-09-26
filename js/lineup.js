@@ -86,6 +86,11 @@ export function goToPlanAhead() {
   state.isPrePlanning = true;
   state.prePlanHalf = 1;
 
+  const nextGameNumber = state.gameHistory.length + 1;
+  if (state.gamePlan && state.gamePlan.gameNumber && state.gamePlan.gameNumber !== nextGameNumber) {
+    state.gamePlan = null;
+  }
+
   state.lineupDraft = [...present].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({
     id: p.id,
     name: p.name,
@@ -120,6 +125,7 @@ function buildPositionMapFromDraft() {
 export function advancePrePlan() {
   const posMap = buildPositionMapFromDraft();
   state.gamePlan = state.gamePlan || {};
+  state.gamePlan.gameNumber = state.gameHistory.length + 1;
 
   if (state.prePlanHalf === 1) {
     state.gamePlan.half1 = posMap;

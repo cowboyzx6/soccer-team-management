@@ -145,6 +145,111 @@ test('restore backup normalizes profile data and clears stale photos', async ({ 
   expect(stored.activeGame).toBeNull();
 });
 
+test('backup restores a lineup plan only for the next unplayed game', async ({ page }, testInfo) => {
+  const profilePath = testInfo.outputPath('restore-planned-game.json');
+  await fs.writeFile(profilePath, JSON.stringify({
+    teamName: 'Oyster Blueberries',
+    halfMinutes: 25,
+    roster: [
+      { id: 1, name: 'Avery' },
+      { id: 2, name: 'Blake' },
+    ],
+    games: [{
+      date: '2026-09-12',
+      opponent: 'Green Team',
+      ourScore: 1,
+      theirScore: 0,
+      goals: [],
+      playerStats: [],
+    }],
+    gamePlan: {
+      gameNumber: 2,
+      half1: { GK: 1, CF: 2, BAD: 1 },
+      half2: { GK: 2, CF: 1, RF: 99 },
+    },
+  }), 'utf8');
+
+  await page.setInputFiles('#import-file-input', profilePath);
+  await expect(page.locator('#game-number-label')).toHaveText('Game 2');
+
+  const storedPlan = await page.evaluate(() => JSON.parse(localStorage.getItem('soccerGamePlan') || 'null'));
+  expect(storedPlan).toEqual({
+    gameNumber: 2,
+    half1: { GK: 1, CF: 2 },
+    half2: { GK: 2, CF: 1 },
+  });
+  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineups planned for both halves');
+});
+
+test('restore does not activate a plan for an already completed game', async ({ page }, testInfo) => {
+  const profilePath = testInfo.outputPath('restore-completed-plan.json');
+  const game = {
+    date: '2026-09-12',
+    opponent: 'Green Team',
+    ourScore: 1,
+    theirScore: 0,
+    goals: [],
+    playerStats: [],
+  };
+  await fs.writeFile(profilePath, JSON.stringify({
+    teamName: 'Oyster Blueberries',
+    halfMinutes: 25,
+    roster: [{ id: 1, name: 'Avery' }],
+    games: [game, { ...game, date: '2026-09-19', opponent: 'Red Team' }],
+    gamePlan: {
+      gameNumber: 2,
+      half1: { GK: 1 },
+      half2: { GK: 1 },
+    },
+  }), 'utf8');
+
+  await page.evaluate(() => {
+    localStorage.setItem('soccerGamePlan', JSON.stringify({
+      gameNumber: 99,
+      half1: { GK: 1 },
+    }));
+  });
+  await page.setInputFiles('#import-file-input', profilePath);
+  await expect(page.locator('#game-number-label')).toHaveText('Game 3');
+
+  expect(await page.evaluate(() => localStorage.getItem('soccerGamePlan'))).toBeNull();
+  await expect(page.locator('#plan-ahead-status')).toBeHidden();
+});
+
+test('profile backup includes only a pending plan and archives plans with completed games', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const [{ state }, { buildGameRecord, buildProfile }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/persistence.js'),
+    ]);
+
+    state.roster = [{ id: 1, name: 'Avery' }];
+    state.players = [];
+    state.gameHistory = [{
+      date: '2026-09-12', opponent: 'Green Team', ourScore: 1, theirScore: 0, goals: [], playerStats: [],
+    }];
+    state.gamePlan = { gameNumber: 2, half1: { GK: 1 }, half2: { GK: 1 } };
+
+    const pendingProfile = buildProfile(false);
+    const completedRecord = buildGameRecord();
+    state.gameHistory.push(completedRecord);
+    const completedProfile = buildProfile(false);
+
+    return { pendingProfile, completedRecord, completedProfile };
+  });
+
+  expect(result.pendingProfile.gamePlan).toEqual({
+    gameNumber: 2,
+    half1: { GK: 1 },
+    half2: { GK: 1 },
+  });
+  expect(result.completedRecord.plannedLineups).toEqual({
+    half1: { GK: 1 },
+    half2: { GK: 1 },
+  });
+  expect(result.completedProfile.gamePlan).toBeUndefined();
+});
+
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));
@@ -161,6 +266,11 @@ test('start new season clears roster history and photos but keeps settings', asy
       playerStats: [{ id: 3, name: 'Avery', secondsPlayed: 900 }],
     }]));
     localStorage.setItem('playerPhotos', JSON.stringify({ 3: 'data:image/png;base64,OLDPHOTO' }));
+    localStorage.setItem('soccerGamePlan', JSON.stringify({
+      gameNumber: 2,
+      half1: { GK: 3 },
+      half2: { GK: 3 },
+    }));
   });
 
   await page.reload();
@@ -187,6 +297,7 @@ test('start new season clears roster history and photos but keeps settings', asy
     history: JSON.parse(localStorage.getItem('soccerGameHistory') || '[]'),
     photos: localStorage.getItem('playerPhotos'),
     activeGame: localStorage.getItem('soccerActiveGame'),
+    gamePlan: localStorage.getItem('soccerGamePlan'),
   }));
 
   expect(stored.roster).toEqual([]);
@@ -198,6 +309,7 @@ test('start new season clears roster history and photos but keeps settings', asy
   expect(stored.history).toEqual([]);
   expect(stored.photos).toBeNull();
   expect(stored.activeGame).toBeNull();
+  expect(stored.gamePlan).toBeNull();
 });
 
 test('league CSV import skips duplicate names within the file', async ({ page }, testInfo) => {

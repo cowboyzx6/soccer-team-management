@@ -130,12 +130,12 @@ Important limitations:
 
 ### Backup Team
 
-Downloads a JSON backup of the full team profile, including roster, photos, settings, and saved game history.
+Downloads a JSON backup of the full team profile, including roster, photos, settings, saved game history, and any lineup plan saved for the next unplayed game. Completed game records retain the planned lineups used for that game.
 
 ### Restore Backup
 
-Imports a previously downloaded team backup JSON file and restores its profile data.
-Imported profiles are validated and normalized before replacing local data: roster ids and names, settings, saved games, scores, goals, player stats, position totals, and embedded photos are checked before they are stored. Restoring a backup rebuilds the photo map from that backup so old local photos cannot leak into the restored team.
+Imports a previously downloaded team backup JSON file and restores its profile data. A saved lineup plan is activated only when its game number matches the next unplayed game, so a completed game's plan cannot become the default for a later game.
+Imported profiles are validated and normalized before replacing local data: roster ids and names, settings, saved games, scores, goals, player stats, position totals, planned lineups, and embedded photos are checked before they are stored. Restoring a backup rebuilds the photo map from that backup so old local photos cannot leak into the restored team.
 
 ### Export Game JSON
 

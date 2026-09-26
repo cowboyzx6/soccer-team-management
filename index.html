@@ -537,6 +537,16 @@
 <!-- ============================================================ -->
 <!--  SCRIPT                                                      -->
 <!-- ============================================================ -->
+<script>
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    let reloadingForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      window.location.reload();
+    });
+  }
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

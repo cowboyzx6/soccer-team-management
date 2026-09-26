@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.26268.5';
+const CACHE_VERSION = '1.26268.6';
 const CACHE = `stm-${CACHE_VERSION}`;
 const ASSETS = [
   './',
@@ -32,10 +32,19 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for HTML so deployed updates are picked up without manual cache clearing.
-  if (e.request.destination === 'document' || e.request.url.endsWith('.html')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-    return;
-  }
-  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
+
+  // Prefer current deployed assets while online, retaining the cache as an
+  // offline fallback. This prevents an older worker from pinning stale JS.
+  e.respondWith(
+    fetch(e.request)
+      .then(response => {
+        if (!response.ok) return response;
+        const copy = response.clone();
+        return caches.open(CACHE)
+          .then(cache => cache.put(e.request, copy))
+          .then(() => response);
+      })
+      .catch(() => caches.match(e.request))
+  );
 });

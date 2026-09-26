@@ -160,7 +160,7 @@ Versions use this format:
 - `DDD` is the day number of the year.
 - `N` is the next versioned update number for that day.
 
-The version is stored in `APP_VERSION` in `js/version.js` and is shown in About plus included as `appVersion` in JSON exports. The service worker cache uses `CACHE_VERSION` in `sw.js`, and the cache name is derived from that value.
+The version is stored in `APP_VERSION` in `js/version.js` and is shown in About plus included as `appVersion` in JSON exports. The service worker cache uses `CACHE_VERSION` in `sw.js`, and the cache name is derived from that value. App assets use network-first loading with an offline cache fallback, and an installed app reloads automatically when a newly activated worker takes control.
 
 A tracked pre-commit hook runs `scripts/Update-AppVersion.ps1` to stamp both `js/version.js` and `sw.js` automatically before each commit. The first versioned commit on a day ends in `.1`, the second ends in `.2`, and so on. On a fresh clone, enable the hook with:
 

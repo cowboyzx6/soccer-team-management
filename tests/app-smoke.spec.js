@@ -647,3 +647,313 @@ test('halftime lineup can be edited before the 2nd half starts', async ({ page }
     isRunning: false,
   });
 });
+
+// ---------- Live-game substitution helpers ----------
+async function startLiveGame(page) {
+  await page.evaluate(async () => {
+    const [{ state }, { showScreen }, { renderGame }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/utils.js'),
+      import('/js/game.js'),
+    ]);
+    const mk = (id, name, position) => ({
+      id, name,
+      onField: !!position,
+      totalPlayed: 0,
+      subInAt: position ? 0 : null,
+      h1Snapshot: null,
+      position: position || null,
+      positionTime: {},
+      positionStart: position ? 0 : null,
+      benchSince: position ? null : 0,
+    });
+    state.teamName = 'Oyster Blueberries';
+    state.opponentName = 'Blue Team';
+    state.halfMinutes = 25;
+    state.totalElapsed = 0;
+    state.halfClock = 1500;
+    state.currentHalf = 1;
+    state.isRunning = false;
+    state.players = [mk(1, 'Avery', 'GK'), mk(2, 'Blake', 'CF'), mk(3, 'Casey', 'LM'), mk(4, 'Devon'), mk(5, 'Emery')];
+    state.goalie1Id = 1;
+    state.goalie2Id = null;
+    state.activeGoalieId = 1;
+    state.subPlans = [];
+    state.subPick = null;
+    state.goals = [];
+    state.scoreUs = 0;
+    state.scoreThem = 0;
+    showScreen('game-screen');
+    renderGame();
+  });
+}
+
+function readSubState(page) {
+  return page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return {
+      plans: state.subPlans.map(pl => [pl.inId, pl.pos]).sort(),
+      onField: state.players.filter(p => p.onField).map(p => [p.id, p.position]).sort(),
+      activeGoalieId: state.activeGoalieId,
+      subPick: state.subPick,
+    };
+  });
+}
+
+const fieldSlot = (page, pos) => page.locator(`#field-positions [data-position="${pos}"]`);
+const benchCard = (page, id) => page.locator(`#bench-grid .player-card[data-player-id="${id}"]`);
+const STARTING_FIELD = [[1, 'GK'], [2, 'CF'], [3, 'LM']];
+
+test('sub pairs are the same in either tap order and wait for Sub Now', async ({ page }) => {
+  await startLiveGame(page);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await fieldSlot(page, 'LM').click();
+  await benchCard(page, 5).click();
+
+  const s = await readSubState(page);
+  expect(s.plans).toEqual([[4, 'CF'], [5, 'LM']]);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.subPick).toBeNull();
+  await expect(fieldSlot(page, 'CF')).toContainText('Devon');
+});
+
+test('empty-slot pairs wait for Sub Now and re-pairing replaces the old pair', async ({ page }) => {
+  await startLiveGame(page);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'RF').click();
+  expect((await readSubState(page)).plans).toEqual([[4, 'RF']]);
+  expect((await readSubState(page)).onField).toEqual(STARTING_FIELD);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  expect((await readSubState(page)).plans).toEqual([[4, 'CF']]);
+
+  await benchCard(page, 5).click();
+  await fieldSlot(page, 'CF').click();
+  expect((await readSubState(page)).plans).toEqual([[5, 'CF']]);
+
+  // Tapping a paired player picks it; it does not cancel the pair.
+  await benchCard(page, 5).click();
+  let s = await readSubState(page);
+  expect(s.plans).toEqual([[5, 'CF']]);
+  expect(s.subPick).toEqual({ zone: 'bench', id: 5 });
+  await expect(benchCard(page, 5)).toHaveClass(/planning-active/);
+
+  // Tapping it again clears the pick.
+  await benchCard(page, 5).click();
+  s = await readSubState(page);
+  expect(s.subPick).toBeNull();
+});
+
+test('removing a paired player from the game drops their pair', async ({ page }) => {
+  await startLiveGame(page);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await benchCard(page, 4).locator('.btn-remove-player').click();
+  await page.locator('#remove-player-confirm-btn').click();
+
+  const s = await readSubState(page);
+  expect(s.plans).toEqual([]);
+  expect(s.subPick).toBeNull();
+});
+
+test('resuming an old saved game drops stale sub plans and picks', async ({ page }) => {
+  await page.evaluate(() => {
+    const mk = (id, name, position) => ({
+      id, name, onField: !!position, totalPlayed: 0, subInAt: position ? 0 : null,
+      h1Snapshot: null, position: position || null, positionTime: {},
+      positionStart: position ? 0 : null, benchSince: position ? null : 0,
+    });
+    localStorage.setItem('soccerActiveGame', JSON.stringify({
+      players: [mk(1, 'Avery', 'GK'), mk(2, 'Blake', 'CF'), mk(4, 'Devon')],
+      totalElapsed: 60, halfClock: 1440, currentHalf: 1,
+      goalie1Id: 1, activeGoalieId: 1, opponentName: 'Blue Team', halfMinutes: 25,
+      subPlans: [{ inId: 4, pos: 'CF' }, { inId: 2, pos: 'LM' }, { inId: 4, pos: 'XX' }],
+      planningBenchId: 4, planningPosition: 'LM', selectedId: 2,
+    }));
+  });
+  page.on('dialog', d => d.accept());
+  await page.reload();
+  await expect(page.locator('#game-screen')).toHaveClass(/active/);
+
+  const s = await readSubState(page);
+  expect(s.plans).toEqual([[4, 'CF']]);
+  expect(s.subPick).toBeNull();
+});
+
+test('sub tray lists pairs, removes one with ✕, and Sub Now executes the rest', async ({ page }) => {
+  await startLiveGame(page);
+  await expect(page.locator('#sub-tray')).toBeHidden();
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await benchCard(page, 5).click();
+  await fieldSlot(page, 'LM').click();
+
+  const rows = page.locator('#sub-tray .sub-tray-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('Devon');
+  await expect(rows.first()).toContainText('CF');
+  await expect(rows.first()).toContainText('Blake out');
+  await expect(page.locator('#sub-now-btn')).toHaveText('Sub Now (2)');
+
+  await page.locator('#sub-tray .sub-tray-remove[data-pos="LM"]').click();
+  await expect(rows).toHaveCount(1);
+  expect((await readSubState(page)).plans).toEqual([[4, 'CF']]);
+
+  await page.locator('#sub-now-btn').click();
+  const s = await readSubState(page);
+  expect(s.onField).toEqual([[1, 'GK'], [3, 'LM'], [4, 'CF']]);
+  expect(s.plans).toEqual([]);
+  await expect(page.locator('#sub-tray')).toBeHidden();
+});
+
+test('empty-slot and GK pairs fill on Sub Now', async ({ page }) => {
+  await startLiveGame(page);
+
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'RF').click();
+  await fieldSlot(page, 'GK').click();
+  await benchCard(page, 5).click();
+  await expect(page.locator('#sub-tray .sub-tray-row').first()).toContainText('(empty)');
+
+  await page.locator('#sub-now-btn').click();
+  const s = await readSubState(page);
+  expect(s.onField).toEqual([[2, 'CF'], [3, 'LM'], [4, 'RF'], [5, 'GK']]);
+  expect(s.activeGoalieId).toBe(5);
+  const goalie1Id = await page.evaluate(async () => (await import('/js/state.js')).state.goalie1Id);
+  expect(goalie1Id).toBe(5);
+});
+
+test('sub tray rows are not rebuilt by clock re-renders', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+
+  const survived = await page.evaluate(async () => {
+    const { renderGame } = await import('/js/game.js');
+    const row = document.querySelector('#sub-tray .sub-tray-row');
+    renderGame();
+    renderGame();
+    return row.isConnected;
+  });
+  expect(survived).toBe(true);
+});
+
+test('undo after Sub Now restores players, play time and the pairs', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+  await expect(page.locator('#undo-sub-btn')).toBeVisible();
+
+  // Clock runs two minutes before the coach notices.
+  await page.evaluate(async () => {
+    const [{ state }, { renderGame }] = await Promise.all([import('/js/state.js'), import('/js/game.js')]);
+    state.totalElapsed = 120;
+    renderGame();
+  });
+  await page.locator('#undo-sub-btn').click();
+
+  const s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.plans).toEqual([[4, 'CF']]);
+  await expect(page.locator('#undo-sub-btn')).toBeHidden();
+
+  const times = await page.evaluate(async () => {
+    const [{ state }, { getPlayedTime }] = await Promise.all([import('/js/state.js'), import('/js/game.js')]);
+    const byId = id => state.players.find(p => p.id === id);
+    return {
+      blake: getPlayedTime(byId(2)),
+      blakePosStart: byId(2).positionStart,
+      devon: getPlayedTime(byId(4)),
+      devonBenchSince: byId(4).benchSince,
+      devonPosTime: byId(4).positionTime,
+    };
+  });
+  expect(times).toEqual({ blake: 120, blakePosStart: 0, devon: 0, devonBenchSince: 0, devonPosTime: {} });
+});
+
+test('undo after sending the goalie to the bench restores the goalie', async ({ page }) => {
+  await startLiveGame(page);
+  await fieldSlot(page, 'GK').click();
+  await fieldSlot(page, 'GK').locator('.pos-bench-btn').click();
+
+  let s = await readSubState(page);
+  expect(s.onField).toEqual([[2, 'CF'], [3, 'LM']]);
+  expect(s.activeGoalieId).toBeNull();
+
+  await page.locator('#undo-sub-btn').click();
+  s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.activeGoalieId).toBe(1);
+});
+
+test('undo is cleared at halftime', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+  await expect(page.locator('#undo-sub-btn')).toBeVisible();
+
+  await page.evaluate(async () => {
+    const { handleHalfEnd, undoLastSub } = await import('/js/game.js');
+    handleHalfEnd();
+    undoLastSub();
+  });
+  await expect(page.locator('#undo-sub-btn')).toBeHidden();
+  expect((await readSubState(page)).onField).toEqual([[1, 'GK'], [3, 'LM'], [4, 'CF']]);
+});
+
+test('sub tray remove button stays inside the tray at phone width', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+
+  const tray = await page.locator('#sub-tray').boundingBox();
+  const remove = await page.locator('#sub-tray .sub-tray-remove').boundingBox();
+  const out = await page.locator('#sub-tray .sub-tray-out').boundingBox();
+  expect(remove.x + remove.width).toBeLessThanOrEqual(tray.x + tray.width + 1);
+  expect(out.x + out.width).toBeLessThanOrEqual(tray.x + tray.width + 1);
+  expect(remove.height).toBeGreaterThanOrEqual(44);
+
+  // Names wrap rather than being cut off with an ellipsis.
+  const clipped = await page.locator('#sub-tray .sub-tray-in, #sub-tray .sub-tray-out')
+    .evaluateAll(els => els.filter(el => el.scrollWidth > el.clientWidth).map(el => el.textContent));
+  expect(clipped).toEqual([]);
+});
+
+test('undo drops a newer pair for the player who comes back on', async ({ page }) => {
+  await startLiveGame(page);
+  await benchCard(page, 4).click();
+  await fieldSlot(page, 'CF').click();
+  await page.locator('#sub-now-btn').click();
+
+  // Blake (subbed out) is now paired to LM, then the coach undoes the sub.
+  await benchCard(page, 2).click();
+  await fieldSlot(page, 'LM').click();
+  expect((await readSubState(page)).plans).toEqual([[2, 'LM']]);
+  await page.locator('#undo-sub-btn').click();
+
+  const s = await readSubState(page);
+  expect(s.onField).toEqual(STARTING_FIELD);
+  expect(s.plans).toEqual([[4, 'CF']]);
+});
+
+test('a tap held across a clock tick still picks the player', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => (await import('/js/game.js')).resumeGame());
+
+  const box = await benchCard(page, 4).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1300);
+  await page.mouse.up();
+
+  expect((await readSubState(page)).subPick).toEqual({ zone: 'bench', id: 4 });
+});

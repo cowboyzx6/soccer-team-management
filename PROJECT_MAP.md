@@ -52,7 +52,7 @@ There is no separate `review-screen` element. Game review imports are rendered t
 | 1558-1593 | Goalie styles | Goalie status, GK badges/buttons |
 | 1594-1646 | Goalie wheel | Wheel container, fades, track, items |
 | 1647-1810 | Field diagram | Shared field diagram, position slots, pos labels/avatar/time, GK/bench slot buttons |
-| 1811-1899 | Sub planning | Planned sub indicators, incoming player strip, Sub Now button |
+| 1871-2021 | Sub planning | Planned sub indicators, incoming player strip, sub tray, Sub Now / Undo buttons |
 
 ## HTML / DOM map in `index.html`
 
@@ -103,8 +103,8 @@ There is no separate `review-screen` element. Game review imports are rendered t
 | Timer / clock / pause | `togglePause`, `pauseGame`, `resumeGame`, `tick`, `renderClock`, `syncGamePhaseUi`, `halfClock`, `totalElapsed`, `timerBase` |
 | Bench sorting / card colors | `computeFairShare`, `getStatus`, `setBenchSort`, `renderGame`, `renderGrid`, `benchSort` |
 | Field diagram / position slots | `POSITIONS`, `FIELD_SVG`, `renderField`, `.pos-slot`, `#field-positions`, `handleFieldSlotPointerDown`, `moveFieldPlayerToPosition`, `moveFieldPlayerToBench` |
-| Planned substitutions | `handleTap`, `createPlan`, `cancelPlanForPos`, `executeAllPlans`, `subPlans`, `planningBenchId`, `planningPosition` |
-| Immediate substitution | `handleTap`, `makeSub`, `selectedId`, `activeGoalieId` |
+| Planned substitutions | `pickForSub`, `addSubPair`, `removeSubPair`, `renderSubTray`, `executeAllPlans`, `subPlans`, `subPick` |
+| Undo last sub | `undoLastSub`, `snapshotForUndo`, `lastSubUndo`, `#undo-sub-btn` |
 | Late arrivals | `openLateModal`, `confirmLateArrival`, `#late-player-list` |
 | Remove player from active game | `promptRemovePlayer`, `confirmRemovePlayer`, `leftEarly`, delegated bench listener |
 | Goals / score | `openGoalModal`, `recordGoal`, `confirmGoal`, `confirmTheirScore`, `renderScore`, `goals`, `scoreUs`, `scoreThem` |
@@ -192,8 +192,10 @@ There is no separate `review-screen` element. Game review imports are rendered t
 - `sort-time-btn`
 - `sort-priority-btn`
 - `sub-hint`
-- `sub-now-wrap`
+- `sub-tray`
+- `sub-tray-list`
 - `sub-now-btn`
+- `undo-sub-btn`
 - `bench-grid`
 
 ### Summary / season
@@ -256,10 +258,8 @@ There is no separate `review-screen` element. Game review imports are rendered t
 - `players` - active game players and runtime stats.
 - `gameHistory` - completed game records, persisted in `soccerGameHistory`.
 - `playerPhotos` - id-to-base64 photo map, persisted in `playerPhotos`.
-- `subPlans` - queued planned substitutions: `{ inId, pos }`.
-- `planningBenchId` - bench player selected while planning a sub.
-- `planningPosition` - empty/field slot selected while planning a sub.
-- `selectedId` - field player selected for immediate substitution.
+- `subPlans` - pending sub pairs shown in the sub tray: `{ inId, pos }`.
+- `subPick` - current substitution tap: `{ zone: 'bench', id }` or `{ zone: 'field', pos }`.
 - `lineupDraft` - temporary pre-game lineup assignment.
 - `savedChecked` - `Set` of player ids that were checked on game-day; used to restore attendance after navigating back.
 - `selectedLineupPlayer`, `lineupPointerDrag` - lineup tap/drag assignment state.

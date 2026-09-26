@@ -84,6 +84,7 @@ import {
   handleFieldSlotPointerMove,
   handleFieldSlotPointerUp,
   handleHalfEnd,
+  holdGameRenders,
   isFieldClickSuppressed,
   moveFieldPlayerToBench,
   openGoalModal,
@@ -91,6 +92,8 @@ import {
   pauseGame,
   promptRemovePlayer,
   recordGoal,
+  releaseGameRenders,
+  removeSubPair,
   renderClock,
   renderGame,
   renderScore,
@@ -100,6 +103,7 @@ import {
   syncGamePhaseUi,
   togglePause,
   undoLastGoal,
+  undoLastSub,
   updateGoalBtn,
   useHalf2Plan
 } from './game.js';
@@ -231,6 +235,11 @@ document.getElementById('sort-time-btn').addEventListener('click', () => setBenc
 document.getElementById('sort-priority-btn').addEventListener('click', () => setBenchSort('priority'));
 document.getElementById('late-arrival-btn').addEventListener('click', openLateModal);
 document.getElementById('sub-now-btn').addEventListener('click', executeAllPlans);
+document.getElementById('undo-sub-btn').addEventListener('click', undoLastSub);
+document.getElementById('sub-tray-list').addEventListener('click', e => {
+  const removeBtn = e.target.closest('.sub-tray-remove');
+  if (removeBtn) removeSubPair(removeBtn.dataset.pos);
+});
 document.getElementById('summary-export-btn').addEventListener('click', () => exportProfile(false, true));
 document.getElementById('summary-home-btn').addEventListener('click', goToSetup);
 document.getElementById('season-back-btn').addEventListener('click', goToSetup);
@@ -280,6 +289,11 @@ document.getElementById('field-positions').addEventListener('click', e => {
     moveFieldPlayerToBench(parseInt(benchBtn.closest('[data-player-id]').dataset.playerId));
   }
 }, true);
+
+document.getElementById('game-screen').addEventListener('pointerdown', holdGameRenders, true);
+window.addEventListener('pointerup', releaseGameRenders);
+window.addEventListener('pointercancel', releaseGameRenders);
+window.addEventListener('blur', releaseGameRenders);
 
 document.getElementById('field-positions').addEventListener('pointerdown', handleFieldSlotPointerDown);
 window.addEventListener('pointermove', handleFieldSlotPointerMove, { passive: false });

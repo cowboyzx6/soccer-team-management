@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { POSITIONS, state } from './state.js';
 import { showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
 import { normalizeGamePlan, normalizeProfile } from './profile-normalizer.js';
@@ -95,8 +95,6 @@ export function saveActiveGame() {
       goals: state.goals,
       halfMinutes: state.halfMinutes,
       subPlans: state.subPlans,
-      planningBenchId: state.planningBenchId,
-      planningPosition: state.planningPosition,
       gameDate: state.gameDate,
       gamePlan: state.gamePlan
     }));
@@ -130,9 +128,11 @@ export function checkForActiveGame() {
   state.scoreThem        = saved.scoreThem       || 0;
   state.goals            = saved.goals           || [];
   state.halfMinutes      = saved.halfMinutes     || 25;
-  state.subPlans         = saved.subPlans        || [];
-  state.planningBenchId  = saved.planningBenchId ?? null;
-  state.planningPosition = saved.planningPosition ?? null;
+  state.subPlans         = (Array.isArray(saved.subPlans) ? saved.subPlans : []).filter(pl => {
+    const inn = pl && state.players.find(p => p.id === pl.inId);
+    return inn && !inn.onField && !inn.leftEarly && Object.prototype.hasOwnProperty.call(POSITIONS, pl.pos);
+  });
+  state.subPick          = null;
   state.gameDate         = saved.gameDate        || new Date().toISOString().slice(0, 10);
   state.gamePlan         = saved.gamePlan        ?? null;
 

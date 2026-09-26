@@ -47,6 +47,46 @@ test('attendance can reach lineup screen', async ({ page }) => {
   await expect(page.locator('#lineup-header-title')).toContainText('Oyster Blueberries');
 });
 
+test('lineup drag uses an expanded drop zone around position slots', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' },
+      { id: 2, name: 'Blake' },
+    ]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
+  });
+
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#start-btn').click();
+  await page.locator('#gk-picker-skip-btn').click();
+
+  const player = page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]');
+  const gkSlot = page.locator('#lineup-field-positions [data-position="GK"]');
+  const playerBox = await player.boundingBox();
+  const slotBox = await gkSlot.boundingBox();
+
+  expect(playerBox).not.toBeNull();
+  expect(slotBox).not.toBeNull();
+
+  const startX = playerBox.x + playerBox.width / 2;
+  const startY = playerBox.y + playerBox.height / 2;
+  const slotCenterX = slotBox.x + slotBox.width / 2;
+  const slotCenterY = slotBox.y + slotBox.height / 2;
+  const nearSlotX = slotCenterX + 78;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(nearSlotX, slotCenterY, { steps: 8 });
+
+  await expect(gkSlot).toHaveClass(/drag-over/);
+
+  await page.mouse.up();
+  await expect(gkSlot).toContainText('Avery');
+});
+
 test('restore backup normalizes profile data and clears stale photos', async ({ page }, testInfo) => {
   const profilePath = testInfo.outputPath('restore-profile.json');
   await fs.writeFile(profilePath, JSON.stringify({

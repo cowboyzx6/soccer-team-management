@@ -5,6 +5,7 @@ import { saveGamePlan } from './persistence.js';
 
 const WHEEL_ITEM_H = 60;
 const WHEEL_REPS = 50;
+const LINEUP_SLOT_DROP_RADIUS_PX = 84;
 
 function setLineupGoalieId(pos, playerId) {
   if (pos !== 'GK') return;
@@ -377,7 +378,7 @@ export function handleLineupPointerMove(e) {
   }
   moveFieldDragPreview(lineupPointerDrag.preview, e.clientX, e.clientY);
 
-  const overSlot = findNearestSlot(e.clientX, e.clientY, '#lineup-field-positions');
+  const overSlot = findNearestSlot(e.clientX, e.clientY, '#lineup-field-positions', LINEUP_SLOT_DROP_RADIUS_PX);
   if (lineupPointerDrag.overSlot && lineupPointerDrag.overSlot !== overSlot) {
     lineupPointerDrag.overSlot.classList.remove('drag-over');
   }

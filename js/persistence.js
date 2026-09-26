@@ -208,9 +208,10 @@ export function buildProfile(includeGameRecord) {
       gameNumber: state.gamePlan.gameNumber,
       ...(state.gamePlan.date || state.gameDate ? { date: state.gamePlan.date || state.gameDate } : {}),
       ...(state.gamePlan.opponent || state.opponentName ? { opponent: state.gamePlan.opponent || state.opponentName } : {}),
-      playerIds: state.gamePlan.playerIds && state.gamePlan.playerIds.length
-        ? [...state.gamePlan.playerIds]
-        : [...new Set(lineupPlayerIds)],
+      playerIds: [...new Set([
+        ...(state.gamePlan.playerIds || []),
+        ...lineupPlayerIds,
+      ])],
       ...(state.gamePlan.half1 ? { half1: { ...state.gamePlan.half1 } } : {}),
       ...(state.gamePlan.half2 ? { half2: { ...state.gamePlan.half2 } } : {}),
     };

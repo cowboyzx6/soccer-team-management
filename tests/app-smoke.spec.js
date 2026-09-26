@@ -153,6 +153,7 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
     roster: [
       { id: 1, name: 'Avery' },
       { id: 2, name: 'Blake' },
+      { id: 3, name: 'Casey' },
     ],
     games: [{
       date: '2026-09-12',
@@ -166,7 +167,7 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
       gameNumber: 2,
       date: '2026-09-26',
       opponent: 'Blue Team',
-      playerIds: [1, 2, 99],
+      playerIds: [3, 99],
       half1: { GK: 1, CF: 2, BAD: 1 },
       half2: { GK: 2, CF: 1, RF: 99 },
     },
@@ -181,7 +182,7 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
     gameNumber: 2,
     date: '2026-09-26',
     opponent: 'Blue Team',
-    playerIds: [1, 2],
+    playerIds: [3, 1, 2],
     half1: { GK: 1, CF: 2 },
     half2: { GK: 2, CF: 1 },
   });
@@ -190,6 +191,7 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
   await expect(page.locator('#game-date-input')).toHaveValue('2026-09-26');
   await expect(page.locator('#tile-1')).toHaveClass(/selected/);
   await expect(page.locator('#tile-2')).toHaveClass(/selected/);
+  await expect(page.locator('#tile-3')).toHaveClass(/selected/);
 });
 
 test('restore can decline an upcoming game plan while keeping profile data', async ({ page }, testInfo) => {

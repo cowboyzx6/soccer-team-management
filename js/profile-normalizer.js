@@ -82,9 +82,7 @@ export function normalizeGamePlan(value, {
     : [];
   const uniquePlayerIds = [...new Set(playerIds)]
     .filter(id => !validPlayerIds || validPlayerIds.has(id));
-  const plannedPlayerIds = uniquePlayerIds.length
-    ? uniquePlayerIds
-    : [...new Set(lineupPlayerIds)];
+  const plannedPlayerIds = [...new Set([...uniquePlayerIds, ...lineupPlayerIds])];
   const date = cleanText(value.date, 20);
   const opponent = cleanText(value.opponent, 30);
 

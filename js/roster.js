@@ -118,7 +118,14 @@ export function renderGameDayCheckboxes(restoreChecked = false) {
   const oppInput = document.getElementById('opponent-input');
   if (oppInput && !oppInput.value && state.opponentName) oppInput.value = state.opponentName;
 
-  const savedChecked = state.savedChecked;
+  const plannedPlayerIds = state.gamePlan
+    ? [
+        ...(state.gamePlan.playerIds || []),
+        ...Object.values(state.gamePlan.half1 || {}),
+        ...Object.values(state.gamePlan.half2 || {}),
+      ]
+    : [];
+  const savedChecked = new Set([...state.savedChecked, ...plannedPlayerIds]);
   const list   = document.getElementById('gameday-roster');
   const sorted = [...state.roster].sort((a, b) => a.name.localeCompare(b.name));
   list.innerHTML = sorted.map(p => {

@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { closeModal, escHtml, openModal } from './utils.js';
-import { saveRoster, saveSettings } from './persistence.js';
+import { saveGamePlan, saveRoster, saveSettings } from './persistence.js';
 
 const AVATAR_COLORS = ['#1565c0','#6a1b9a','#2e7d32','#c62828',
                        '#00838f','#ad1457','#4527a0','#e65100'];
@@ -99,7 +99,7 @@ export function renderTeamSetupRoster() {
   `).join('');
 }
 
-export function renderGameDayCheckboxes(restoreChecked = false) {
+export function renderGameDayCheckboxes(restoreChecked = !!state.gamePlan) {
   const empty   = document.getElementById('gameday-empty');
   const content = document.getElementById('gameday-content');
 
@@ -143,12 +143,21 @@ export function togglePlayerTile(id) {
   const tile = document.getElementById(`tile-${id}`);
   if (!tile) return;
   tile.classList.toggle('selected');
+  syncPlannedAttendance();
   updateCheckedCount();
 }
 
-export function renderRoster(restoreChecked = false) {
+export function renderRoster(restoreChecked = !!state.gamePlan) {
   renderTeamSetupRoster();
   renderGameDayCheckboxes(restoreChecked);
+}
+
+function syncPlannedAttendance() {
+  if (!state.gamePlan) return;
+  const playerIds = checkedPlayers().map(p => p.id);
+  state.savedChecked = new Set(playerIds);
+  state.gamePlan.playerIds = playerIds;
+  saveGamePlan();
 }
 
 export function addRosterPlayer() {
@@ -235,6 +244,7 @@ export function checkAllPlayers() {
   document.querySelectorAll('#gameday-roster .player-tile').forEach(tile => {
     tile.classList.toggle('selected', selectAll);
   });
+  syncPlannedAttendance();
   updateCheckedCount();
 }
 

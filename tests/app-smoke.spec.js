@@ -192,6 +192,14 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
   await expect(page.locator('#tile-1')).toHaveClass(/selected/);
   await expect(page.locator('#tile-2')).toHaveClass(/selected/);
   await expect(page.locator('#tile-3')).toHaveClass(/selected/);
+
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  await page.locator('#team-setup-back-btn').click();
+  await expect(page.locator('#tile-1')).toHaveClass(/selected/);
+  await expect(page.locator('#tile-2')).toHaveClass(/selected/);
+  await expect(page.locator('#tile-3')).toHaveClass(/selected/);
+  await expect(page.locator('#plan-ahead-btn')).toBeEnabled();
 });
 
 test('restore can decline an upcoming game plan while keeping profile data', async ({ page }, testInfo) => {

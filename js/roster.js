@@ -50,10 +50,27 @@ export function avatarParts(id, name) {
 }
 
 let photoUploadTargetId = null;
+let cropTargetId = null;
+let cropImage = null;
+let cropScale = 1;
+let cropZoom = 1;
+let cropOffset = { x: 0, y: 0 };
+let cropDrag = null;
 
 export function triggerPhotoUpload(id) {
   photoUploadTargetId = id;
   document.getElementById('photo-file-input').click();
+}
+
+function storePhotoDataUrl(id, dataUrl) {
+  state.playerPhotos[id] = dataUrl;
+  try {
+    localStorage.setItem('playerPhotos', JSON.stringify(state.playerPhotos));
+  } catch (e) {
+    delete state.playerPhotos[id];
+    alert('Storage full \u2014 photo could not be saved. Try removing old game history.');
+  }
+  document.dispatchEvent(new CustomEvent('photo:updated'));
 }
 
 export function resizeAndStorePhoto(id, dataURL) {
@@ -67,16 +84,133 @@ export function resizeAndStorePhoto(id, dataURL) {
     const sx = (img.width  - min) / 2;
     const sy = (img.height - min) / 2;
     ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-    state.playerPhotos[id] = canvas.toDataURL('image/jpeg', 0.75);
-    try {
-      localStorage.setItem('playerPhotos', JSON.stringify(state.playerPhotos));
-    } catch (e) {
-      delete state.playerPhotos[id];
-      alert('Storage full \u2014 photo could not be saved. Try removing old game history.');
-    }
-    document.dispatchEvent(new CustomEvent('photo:updated'));
+    storePhotoDataUrl(id, canvas.toDataURL('image/jpeg', 0.75));
   };
   img.src = dataURL;
+}
+
+function cropEls() {
+  return {
+    modal: document.getElementById('photo-crop-modal'),
+    title: document.getElementById('photo-crop-title'),
+    stage: document.getElementById('photo-crop-stage'),
+    image: document.getElementById('photo-crop-image'),
+    zoom: document.getElementById('photo-crop-zoom'),
+  };
+}
+
+function clampCropOffset() {
+  const { stage } = cropEls();
+  if (!cropImage || !stage) return;
+  const stageSize = stage.clientWidth;
+  const width = cropImage.naturalWidth * cropScale * cropZoom;
+  const height = cropImage.naturalHeight * cropScale * cropZoom;
+  const minX = stageSize - width;
+  const minY = stageSize - height;
+  cropOffset.x = Math.min(0, Math.max(minX, cropOffset.x));
+  cropOffset.y = Math.min(0, Math.max(minY, cropOffset.y));
+}
+
+function renderCropPreview() {
+  const { image } = cropEls();
+  if (!cropImage || !image) return;
+  clampCropOffset();
+  const width = cropImage.naturalWidth * cropScale * cropZoom;
+  const height = cropImage.naturalHeight * cropScale * cropZoom;
+  image.style.width = `${width}px`;
+  image.style.height = `${height}px`;
+  image.style.left = `${cropOffset.x}px`;
+  image.style.top = `${cropOffset.y}px`;
+}
+
+function resetCropFrame() {
+  const { stage } = cropEls();
+  if (!cropImage || !stage) return;
+  const stageSize = stage.clientWidth;
+  cropScale = Math.max(stageSize / cropImage.naturalWidth, stageSize / cropImage.naturalHeight);
+  cropZoom = 1;
+  cropOffset = {
+    x: (stageSize - cropImage.naturalWidth * cropScale) / 2,
+    y: (stageSize - cropImage.naturalHeight * cropScale) / 2,
+  };
+  const zoom = document.getElementById('photo-crop-zoom');
+  if (zoom) zoom.value = '1';
+  renderCropPreview();
+}
+
+function openPhotoCropper(id, dataURL) {
+  const player = state.roster.find(p => p.id === id);
+  const { image, title } = cropEls();
+  cropTargetId = id;
+  cropImage = new Image();
+  cropImage.onload = () => {
+    image.src = dataURL;
+    if (title) title.textContent = player ? `Crop ${player.name}'s Photo` : 'Crop Player Photo';
+    openModal('photo-crop-modal');
+    requestAnimationFrame(resetCropFrame);
+  };
+  cropImage.onerror = () => {
+    cropTargetId = null;
+    alert('That image could not be opened. Try a different photo.');
+  };
+  cropImage.src = dataURL;
+}
+
+function closePhotoCropper() {
+  closeModal('photo-crop-modal');
+  const { image } = cropEls();
+  if (image) {
+    image.removeAttribute('src');
+    image.removeAttribute('style');
+  }
+  cropTargetId = null;
+  cropImage = null;
+  cropDrag = null;
+}
+
+function saveCroppedPhoto() {
+  const { stage } = cropEls();
+  if (cropTargetId === null || !cropImage || !stage) return;
+  clampCropOffset();
+  const SIZE = 120;
+  const stageSize = stage.clientWidth;
+  const displayScale = cropScale * cropZoom;
+  const sx = Math.max(0, -cropOffset.x / displayScale);
+  const sy = Math.max(0, -cropOffset.y / displayScale);
+  const sourceSize = stageSize / displayScale;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(cropImage, sx, sy, sourceSize, sourceSize, 0, 0, SIZE, SIZE);
+  storePhotoDataUrl(cropTargetId, canvas.toDataURL('image/jpeg', 0.78));
+  closePhotoCropper();
+}
+
+function handleCropPointerDown(e) {
+  if (!cropImage) return;
+  cropDrag = {
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    offsetX: cropOffset.x,
+    offsetY: cropOffset.y,
+  };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+}
+
+function handleCropPointerMove(e) {
+  if (!cropDrag || cropDrag.pointerId !== e.pointerId) return;
+  e.preventDefault();
+  cropOffset = {
+    x: cropDrag.offsetX + e.clientX - cropDrag.startX,
+    y: cropDrag.offsetY + e.clientY - cropDrag.startY,
+  };
+  renderCropPreview();
+}
+
+function handleCropPointerUp(e) {
+  if (cropDrag && cropDrag.pointerId === e.pointerId) cropDrag = null;
 }
 
 export function renderTeamSetupRoster() {
@@ -292,9 +426,36 @@ export function initEventListeners() {
     const file = e.target.files[0];
     if (!file || photoUploadTargetId === null) return;
     const reader = new FileReader();
-    reader.onload = ev => resizeAndStorePhoto(photoUploadTargetId, ev.target.result);
+    reader.onload = ev => openPhotoCropper(photoUploadTargetId, ev.target.result);
     reader.readAsDataURL(file);
     this.value = '';
+  });
+
+  const cropStage = document.getElementById('photo-crop-stage');
+  const cropZoomInput = document.getElementById('photo-crop-zoom');
+  cropStage.addEventListener('pointerdown', handleCropPointerDown);
+  cropStage.addEventListener('pointermove', handleCropPointerMove, { passive: false });
+  cropStage.addEventListener('pointerup', handleCropPointerUp);
+  cropStage.addEventListener('pointercancel', handleCropPointerUp);
+  cropZoomInput.addEventListener('input', e => {
+    if (!cropImage) return;
+    const stageSize = cropStage.clientWidth;
+    const prevScale = cropScale * cropZoom;
+    const nextZoom = parseFloat(e.target.value) || 1;
+    const centerNaturalX = (stageSize / 2 - cropOffset.x) / prevScale;
+    const centerNaturalY = (stageSize / 2 - cropOffset.y) / prevScale;
+    cropZoom = nextZoom;
+    const nextScale = cropScale * cropZoom;
+    cropOffset = {
+      x: stageSize / 2 - centerNaturalX * nextScale,
+      y: stageSize / 2 - centerNaturalY * nextScale,
+    };
+    renderCropPreview();
+  });
+  document.getElementById('photo-crop-save-btn').addEventListener('click', saveCroppedPhoto);
+  document.getElementById('photo-crop-cancel-btn').addEventListener('click', closePhotoCropper);
+  window.addEventListener('resize', () => {
+    if (cropImage) resetCropFrame();
   });
 
   document.getElementById('rename-input').addEventListener('keydown', e => {

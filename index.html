@@ -437,6 +437,27 @@
 </div>
 
 <!-- ============================================================ -->
+<!--  PHOTO CROP MODAL                                           -->
+<!-- ============================================================ -->
+<div id="photo-crop-modal" class="overlay hidden">
+  <div class="modal photo-crop-modal">
+    <h3 id="photo-crop-title">Crop Player Photo</h3>
+    <div class="photo-crop-stage" id="photo-crop-stage">
+      <img id="photo-crop-image" alt="">
+      <div class="photo-crop-shade"></div>
+    </div>
+    <label class="photo-crop-control" for="photo-crop-zoom">
+      <span>Zoom</span>
+      <input type="range" id="photo-crop-zoom" min="1" max="3" step="0.01" value="1">
+    </label>
+    <div class="modal-btns">
+      <button class="btn btn-blue" id="photo-crop-save-btn">Save Photo</button>
+      <button class="btn btn-gray" id="photo-crop-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
 <!--  GK PICKER MODAL                                            -->
 <!-- ============================================================ -->
 <div id="gk-picker-modal" class="overlay hidden">

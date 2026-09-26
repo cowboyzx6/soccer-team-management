@@ -29,6 +29,42 @@ test('team setup opens and roster can be added', async ({ page }) => {
   await expect(page.locator('#app-title-name')).toHaveText('Oyster Blueberries');
 });
 
+test('player photo upload opens a crop preview before saving', async ({ page }, testInfo) => {
+  const photoPath = testInfo.outputPath('player-photo.png');
+  await fs.writeFile(
+    photoPath,
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAVUlEQVR4nO3QQQ0AIBDAsAP/nuGNAvZoFSzZnpld3gOgeSIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjs8YChZ0AATb3gZsAAAAASUVORK5CYII=',
+      'base64'
+    )
+  );
+
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+  });
+
+  await page.reload();
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.locator('[data-photo-id="1"]').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(photoPath);
+
+  await expect(page.locator('#photo-crop-modal')).not.toHaveClass(/hidden/);
+  await expect(page.locator('#photo-crop-image')).toHaveJSProperty('naturalWidth', 100);
+  await page.locator('#photo-crop-zoom').fill('1.5');
+  await page.locator('#photo-crop-save-btn').click();
+
+  await expect(page.locator('#photo-crop-modal')).toHaveClass(/hidden/);
+  const storedPhoto = await page.evaluate(() => {
+    const photos = JSON.parse(localStorage.getItem('playerPhotos') || '{}');
+    return photos[1] || '';
+  });
+  expect(storedPhoto).toMatch(/^data:image\/jpeg;base64,/);
+});
+
 test('attendance can reach lineup screen', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));

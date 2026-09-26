@@ -59,7 +59,9 @@ let cropDrag = null;
 
 export function triggerPhotoUpload(id) {
   photoUploadTargetId = id;
-  document.getElementById('photo-file-input').click();
+  const input = document.getElementById('photo-file-input');
+  input.value = '';
+  input.click();
 }
 
 function storePhotoDataUrl(id, dataUrl) {
@@ -425,10 +427,12 @@ export function initEventListeners() {
   document.getElementById('photo-file-input').addEventListener('change', function (e) {
     const file = e.target.files[0];
     if (!file || photoUploadTargetId === null) return;
-    const reader = new FileReader();
-    reader.onload = ev => openPhotoCropper(photoUploadTargetId, ev.target.result);
-    reader.readAsDataURL(file);
+    const targetId = photoUploadTargetId;
+    photoUploadTargetId = null;
     this.value = '';
+    const reader = new FileReader();
+    reader.onload = ev => openPhotoCropper(targetId, ev.target.result);
+    reader.readAsDataURL(file);
   });
 
   const cropStage = document.getElementById('photo-crop-stage');

@@ -31,12 +31,17 @@ test('team setup opens and roster can be added', async ({ page }) => {
 
 test('player photo upload opens a crop preview before saving', async ({ page }, testInfo) => {
   const photoPath = testInfo.outputPath('player-photo.png');
+  const replacementPhotoPath = testInfo.outputPath('replacement-player-photo.svg');
   await fs.writeFile(
     photoPath,
     Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAIAAAAlV+npAAAAVUlEQVR4nO3QQQ0AIBDAsAP/nuGNAvZoFSzZnpld3gOgeSIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjYyIjs8YChZ0AATb3gZsAAAAASUVORK5CYII=',
       'base64'
     )
+  );
+  await fs.writeFile(
+    replacementPhotoPath,
+    '<svg xmlns="http://www.w3.org/2000/svg" width="50" height="100"><rect width="50" height="100" fill="#00a86b"/></svg>'
   );
 
   await page.evaluate(() => {
@@ -63,6 +68,22 @@ test('player photo upload opens a crop preview before saving', async ({ page }, 
     return photos[1] || '';
   });
   expect(storedPhoto).toMatch(/^data:image\/jpeg;base64,/);
+
+  const replacementChooserPromise = page.waitForEvent('filechooser');
+  await page.locator('[data-photo-id="1"]').click();
+  const replacementChooser = await replacementChooserPromise;
+  await replacementChooser.setFiles(replacementPhotoPath);
+
+  await expect(page.locator('#photo-crop-modal')).not.toHaveClass(/hidden/);
+  await expect(page.locator('#photo-crop-image')).toHaveJSProperty('naturalWidth', 50);
+  await page.locator('#photo-crop-save-btn').click();
+
+  const replacementPhoto = await page.evaluate(() => {
+    const photos = JSON.parse(localStorage.getItem('playerPhotos') || '{}');
+    return photos[1] || '';
+  });
+  expect(replacementPhoto).toMatch(/^data:image\/jpeg;base64,/);
+  expect(replacementPhoto).not.toBe(storedPhoto);
 });
 
 test('attendance can reach lineup screen', async ({ page }) => {

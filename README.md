@@ -185,6 +185,7 @@ It imports names as `First L.` and skips duplicates already in the roster.
 index.html       App shell and screen/modal markup
 css/styles.css   App stylesheet
 js/              Browser-native ES modules for app logic
+assets/          App icons (home screen / PWA)
 scripts/         Version stamping and test-server helpers
 tests/           Playwright smoke tests and test server setup/teardown
 manifest.json    PWA manifest
@@ -334,7 +335,6 @@ Use `commitPositionTime(player)` before changing a player's position or moving t
 
 ## Suggested Future Improvements
 
-- Split `index.html` into separate `styles.css` and `app.js` files.
 - Add more automated coverage for critical flows beyond the current smoke tests.
 - Add an explicit backup/reminder flow.
 - Consider a lightweight data schema/version field for future migrations.

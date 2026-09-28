@@ -985,6 +985,80 @@ test('sub tray remove button stays inside the tray at phone width', async ({ pag
   expect(clipped).toEqual([]);
 });
 
+test('game screen has no horizontal overflow at phone width', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await startLiveGame(page);
+
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+
+  for (const id of ['clock', 'goal-btn', 'field-positions', 'bench-grid']) {
+    const box = await page.locator(`#${id}`).boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(clientWidth + 1);
+  }
+
+  const goalBtnBox = await page.locator('#goal-btn').boundingBox();
+  expect(goalBtnBox.height).toBeGreaterThanOrEqual(44);
+});
+
+test('lineup screen field and unassigned list do not overlap at phone width', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' },
+      { id: 2, name: 'Blake' },
+    ]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
+  });
+
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#start-btn').click();
+  await page.locator('#gk-picker-skip-btn').click();
+
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+
+  const fieldBox = await page.locator('#lineup-field-positions').boundingBox();
+  const listBox = await page.locator('#lineup-unassigned-list').boundingBox();
+  expect(fieldBox.x + fieldBox.width <= listBox.x || listBox.x + listBox.width <= fieldBox.x).toBe(true);
+});
+
+test('summary screen has no horizontal overflow at phone width', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const reviewPath = testInfo.outputPath('review-game-mobile.json');
+  await fs.writeFile(reviewPath, JSON.stringify({
+    teamName: 'Review Team',
+    games: [{
+      date: '2026-05-09',
+      opponent: 'Blue Team',
+      ourScore: 2,
+      theirScore: 1,
+      goals: [{ team: 'us', scorer: 'Avery', scorerId: 1, half: 1 }],
+      playerStats: [{
+        id: 1,
+        name: 'Avery',
+        secondsPlayed: 600,
+        firstHalfSeconds: 300,
+        secondHalfSeconds: 300,
+        positionSeconds: { GK: 120 },
+      }],
+    }],
+  }), 'utf8');
+
+  await page.setInputFiles('#review-file-input', reviewPath);
+  await expect(page.locator('#summary-screen')).toHaveClass(/active/);
+
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+});
+
 test('undo drops a newer pair for the player who comes back on', async ({ page }) => {
   await startLiveGame(page);
   await benchCard(page, 4).click();

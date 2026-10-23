@@ -27,6 +27,7 @@ import {
   renderGameDayCheckboxes,
   renderRoster,
   renderTeamSetupRoster,
+  switchPlanOffset,
   updatePlanAheadStatus,
   updateStartBtn
 } from './roster.js';
@@ -147,6 +148,7 @@ document.addEventListener('league-csv:imported', () => {
 
 document.addEventListener('profile:imported', () => {
   renderRoster(!!state.gamePlan);
+  updatePlanAheadStatus();
   updateStartBtn();
 });
 
@@ -205,6 +207,8 @@ document.getElementById('min-play-minus-btn').addEventListener('click', () => ch
 document.getElementById('min-play-plus-btn').addEventListener('click', () => changeMinPlayMinutes(5));
 document.getElementById('start-btn').addEventListener('click', goToLineup);
 document.getElementById('plan-ahead-btn').addEventListener('click', goToPlanAhead);
+document.getElementById('plan-next-btn').addEventListener('click', () => switchPlanOffset(state.planOffset + 1));
+document.getElementById('plan-back-btn').addEventListener('click', () => switchPlanOffset(state.planOffset - 1));
 document.getElementById('plan-ahead-clear-btn').addEventListener('click', () => {
   if (confirm('Clear the planned lineups for both halves?')) clearGamePlan();
 });

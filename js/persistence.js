@@ -43,27 +43,72 @@ export function saveGamePlan() {
   } else {
     localStorage.removeItem('soccerGamePlan');
   }
+  if (state.queuedPlans.length) {
+    localStorage.setItem('soccerQueuedPlans', JSON.stringify(state.queuedPlans));
+  } else {
+    localStorage.removeItem('soccerQueuedPlans');
+  }
+}
+
+// Drops plans for games already played and, when the next game has no plan of
+// its own, promotes its queued plan. Returns true when state.gamePlan changed.
+export function reconcilePlans() {
+  const next = state.gameHistory.length + 1;
+  let changed = false;
+  if (state.gamePlan && state.gamePlan.gameNumber < next) {
+    state.gamePlan = null;
+    changed = true;
+  }
+  state.queuedPlans = state.queuedPlans.filter(p => p.gameNumber >= next);
+  if (!state.gamePlan) {
+    const queued = state.queuedPlans.find(p => p.gameNumber === next);
+    if (queued) {
+      state.gamePlan = queued;
+      state.queuedPlans = state.queuedPlans.filter(p => p !== queued);
+      changed = true;
+    }
+  }
+  state.queuedPlans = state.queuedPlans.filter(p => p.gameNumber > next);
+  return changed;
+}
+
+function applyPlanToSetup(plan) {
+  state.gameDate = plan.date || state.gameDate;
+  state.opponentName = plan.opponent || state.opponentName;
+  state.savedChecked = new Set(plan.playerIds || []);
+}
+
+// Makes the next game's plan current after a game ends (or on startup) and
+// loads its players, opponent and date into the game-day setup state.
+export function promoteNextGamePlan() {
+  reconcilePlans();
+  if (state.gamePlan) applyPlanToSetup(state.gamePlan);
+  saveGamePlan();
 }
 
 export function loadGamePlan() {
-  const raw = localStorage.getItem('soccerGamePlan');
-  if (!raw) { state.gamePlan = null; return; }
-  try {
-    state.gamePlan = normalizeGamePlan(JSON.parse(raw), {
-      validPlayerIds: new Set(state.roster.map(p => p.id)),
-      defaultGameNumber: state.gameHistory.length + 1,
-    });
-    if (state.gamePlan) {
-      state.gameDate = state.gamePlan.date || state.gameDate;
-      state.opponentName = state.gamePlan.opponent || state.opponentName;
-      state.savedChecked = new Set(state.gamePlan.playerIds || []);
-      saveGamePlan();
-    }
-    else localStorage.removeItem('soccerGamePlan');
-  } catch {
-    state.gamePlan = null;
-    localStorage.removeItem('soccerGamePlan');
+  const validPlayerIds = new Set(state.roster.map(p => p.id));
+  const defaultGameNumber = state.gameHistory.length + 1;
+  state.gamePlan = null;
+  state.queuedPlans = [];
+  const rawPlan = localStorage.getItem('soccerGamePlan');
+  if (rawPlan) {
+    try {
+      state.gamePlan = normalizeGamePlan(JSON.parse(rawPlan), { validPlayerIds, defaultGameNumber });
+    } catch { state.gamePlan = null; }
   }
+  const rawQueued = localStorage.getItem('soccerQueuedPlans');
+  if (rawQueued) {
+    try {
+      const parsed = JSON.parse(rawQueued);
+      state.queuedPlans = (Array.isArray(parsed) ? parsed : [])
+        .map(p => normalizeGamePlan(p, { validPlayerIds }))
+        .filter(Boolean);
+    } catch { state.queuedPlans = []; }
+  }
+  reconcilePlans();
+  if (state.gamePlan) applyPlanToSetup(state.gamePlan);
+  saveGamePlan();
 }
 
 export function loadGameHistory() {
@@ -199,23 +244,30 @@ export function buildProfile(includeGameRecord) {
   }
 
   const nextGameNumber = profile.games.length + 1;
-  if (state.gamePlan && state.gamePlan.gameNumber === nextGameNumber) {
+  const serializePlan = (plan, isNext) => {
     const lineupPlayerIds = [
-      ...Object.values(state.gamePlan.half1 || {}),
-      ...Object.values(state.gamePlan.half2 || {}),
+      ...Object.values(plan.half1 || {}),
+      ...Object.values(plan.half2 || {}),
     ];
-    profile.gamePlan = {
-      gameNumber: state.gamePlan.gameNumber,
-      ...(state.gamePlan.date || state.gameDate ? { date: state.gamePlan.date || state.gameDate } : {}),
-      ...(state.gamePlan.opponent || state.opponentName ? { opponent: state.gamePlan.opponent || state.opponentName } : {}),
-      playerIds: [...new Set([
-        ...(state.gamePlan.playerIds || []),
-        ...lineupPlayerIds,
-      ])],
-      ...(state.gamePlan.half1 ? { half1: { ...state.gamePlan.half1 } } : {}),
-      ...(state.gamePlan.half2 ? { half2: { ...state.gamePlan.half2 } } : {}),
+    const date = plan.date || (isNext ? state.gameDate : '');
+    const opponent = plan.opponent || (isNext ? state.opponentName : '');
+    return {
+      gameNumber: plan.gameNumber,
+      ...(date ? { date } : {}),
+      ...(opponent ? { opponent } : {}),
+      playerIds: [...new Set([...(plan.playerIds || []), ...lineupPlayerIds])],
+      ...(plan.half1 ? { half1: { ...plan.half1 } } : {}),
+      ...(plan.half2 ? { half2: { ...plan.half2 } } : {}),
     };
-  }
+  };
+  const allPlans = [state.gamePlan, ...state.queuedPlans].filter(Boolean);
+  const nextPlan = allPlans.find(p => p.gameNumber === nextGameNumber);
+  if (nextPlan) profile.gamePlan = serializePlan(nextPlan, nextPlan === state.gamePlan);
+  const laterPlans = allPlans
+    .filter(p => p.gameNumber > nextGameNumber)
+    .sort((a, b) => a.gameNumber - b.gameNumber)
+    .map(p => serializePlan(p, false));
+  if (laterPlans.length) profile.queuedPlans = laterPlans;
 
   const latestGame = profile.games[profile.games.length - 1];
   profile.season = seasonLabel(latestGame && latestGame.date);
@@ -389,6 +441,10 @@ export function initEventListeners() {
           ? confirm(`This backup includes a saved plan for ${planDetails}.\n\nRestore its planned players, opponent, date, and both lineups?`)
           : false;
         state.gamePlan = restorePlan ? pendingPlan : null;
+        state.queuedPlans = restorePlan || !pendingPlan
+          ? (profile.queuedPlans || []).filter(p => p.gameNumber > nextGameNumber)
+          : [];
+        state.planOffset = 0;
         state.savedChecked = new Set(restorePlan ? pendingPlan.playerIds : []);
         state.opponentName = restorePlan ? pendingPlan.opponent || '' : '';
         state.gameDate = restorePlan ? pendingPlan.date || '' : '';

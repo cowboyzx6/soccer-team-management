@@ -2,6 +2,7 @@ import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { avatarHtml, avatarParts, checkedPlayers, renderGameDayCheckboxes } from './roster.js';
 import { closeModal, escHtml, openModal, showScreen } from './utils.js';
 import { saveGamePlan } from './persistence.js';
+import { ensureActivePlan, getActivePlan, setActivePlan, targetGameNumber } from './plans.js';
 
 const WHEEL_ITEM_H = 60;
 const WHEEL_REPS = 50;
@@ -86,9 +87,9 @@ export function goToPlanAhead() {
   state.isPrePlanning = true;
   state.prePlanHalf = 1;
 
-  const nextGameNumber = state.gameHistory.length + 1;
-  if (state.gamePlan && state.gamePlan.gameNumber && state.gamePlan.gameNumber !== nextGameNumber) {
-    state.gamePlan = null;
+  const existingPlan = getActivePlan();
+  if (existingPlan && existingPlan.gameNumber && existingPlan.gameNumber !== targetGameNumber()) {
+    setActivePlan(null);
   }
 
   state.lineupDraft = [...present].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({
@@ -99,8 +100,9 @@ export function goToPlanAhead() {
   }));
 
   // Editing an existing plan for the same roster pre-fills Half 1 from it.
-  if (state.gamePlan && state.gamePlan.half1) {
-    Object.entries(state.gamePlan.half1).forEach(([pos, playerId]) => {
+  const activePlan = getActivePlan();
+  if (activePlan && activePlan.half1) {
+    Object.entries(activePlan.half1).forEach(([pos, playerId]) => {
       const p = state.lineupDraft.find(dp => dp.id === playerId);
       if (p) { p.position = pos; p.onField = true; }
     });
@@ -124,19 +126,19 @@ function buildPositionMapFromDraft() {
 // current half's positions and either advances to Half 2 or finishes the plan.
 export function advancePrePlan() {
   const posMap = buildPositionMapFromDraft();
-  state.gamePlan = state.gamePlan || {};
-  state.gamePlan.gameNumber = state.gameHistory.length + 1;
-  state.gamePlan.date = state.gameDate;
-  state.gamePlan.opponent = state.opponentName;
-  state.gamePlan.playerIds = [...state.savedChecked];
+  const plan = ensureActivePlan();
+  plan.gameNumber = targetGameNumber();
+  plan.date = state.gameDate;
+  plan.opponent = state.opponentName;
+  plan.playerIds = [...state.savedChecked];
 
   if (state.prePlanHalf === 1) {
-    state.gamePlan.half1 = posMap;
+    plan.half1 = posMap;
 
     state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
     // Editing an existing plan pre-fills Half 2 from what was saved before.
-    if (state.gamePlan.half2) {
-      Object.entries(state.gamePlan.half2).forEach(([pos, playerId]) => {
+    if (plan.half2) {
+      Object.entries(plan.half2).forEach(([pos, playerId]) => {
         const p = state.lineupDraft.find(dp => dp.id === playerId);
         if (p) { p.position = pos; p.onField = true; }
       });
@@ -150,7 +152,7 @@ export function advancePrePlan() {
     saveGamePlan();
     renderLineup();
   } else {
-    state.gamePlan.half2 = posMap;
+    plan.half2 = posMap;
     state.isPrePlanning = false;
     state.prePlanHalf = null;
     state.selectedLineupSlot = null;
@@ -223,7 +225,7 @@ export function handleLaunchClick() {
 }
 
 export function clearGamePlan() {
-  state.gamePlan = null;
+  setActivePlan(null);
   saveGamePlan();
   document.dispatchEvent(new CustomEvent('gameplan:saved'));
 }
@@ -319,13 +321,13 @@ export function goBackFromLineup() {
 // plan first so nothing is lost, and advancePrePlan() restores it again if
 // the coach moves forward past Half 1 a second time.
 export function goBackToPrePlanHalf1() {
-  state.gamePlan = state.gamePlan || {};
-  state.gamePlan.half2 = buildPositionMapFromDraft();
+  const plan = ensureActivePlan();
+  plan.half2 = buildPositionMapFromDraft();
   saveGamePlan();
 
   state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
-  if (state.gamePlan.half1) {
-    Object.entries(state.gamePlan.half1).forEach(([pos, playerId]) => {
+  if (plan.half1) {
+    Object.entries(plan.half1).forEach(([pos, playerId]) => {
       const p = state.lineupDraft.find(dp => dp.id === playerId);
       if (p) { p.position = pos; p.onField = true; }
     });
@@ -504,9 +506,10 @@ export function renderLineupField() {
 // the half currently NOT being edited, so the bench card can flag it (e.g.
 // editing Half 2 while she's slotted at CF for Half 1).
 function otherHalfAssignment(playerId) {
-  if (!state.isPrePlanning || !state.gamePlan) return null;
+  const plan = getActivePlan();
+  if (!state.isPrePlanning || !plan) return null;
   const otherHalf = state.prePlanHalf === 1 ? 2 : 1;
-  const map = state.gamePlan[`half${otherHalf}`];
+  const map = plan[`half${otherHalf}`];
   if (!map) return null;
   const entry = Object.entries(map).find(([, id]) => id === playerId);
   return entry ? { half: otherHalf, position: entry[0] } : null;

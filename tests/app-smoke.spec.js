@@ -1088,3 +1088,81 @@ test('a tap held across a clock tick still picks the player', async ({ page }) =
 
   expect((await readSubState(page)).subPick).toEqual({ zone: 'bench', id: 4 });
 });
+
+test('double header: game 2 can be planned ahead and becomes the next plan after game 1', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
+  });
+  await page.reload();
+
+  const planLineup = async playerId => {
+    await page.locator('#plan-ahead-btn').click();
+    for (let half = 1; half <= 2; half++) {
+      await page.locator('#lineup-field-positions [data-position="GK"]').click();
+      await page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${playerId}"]`).click();
+      await page.locator('#launch-btn').click();
+    }
+  };
+
+  // Game 1: Avery only.
+  await page.locator('#opponent-input').fill('Game One FC');
+  await page.locator('#tile-1').click();
+  await expect(page.locator('#plan-next-btn')).toBeHidden();
+  await planLineup(1);
+  await expect(page.locator('#plan-next-btn')).toBeVisible();
+
+  // Game 2: Blake only, different opponent. Starting a game is not offered here.
+  await page.locator('#plan-next-btn').click();
+  await expect(page.locator('#game-number-label')).toContainText('Game 2');
+  await expect(page.locator('#start-btn')).toBeHidden();
+  await expect(page.locator('#tile-1')).not.toHaveClass(/selected/);
+  await page.locator('#opponent-input').fill('Game Two FC');
+  await page.locator('#tile-2').click();
+  await planLineup(2);
+
+  const planned = await page.evaluate(() => ({
+    next: JSON.parse(localStorage.getItem('soccerGamePlan')),
+    queued: JSON.parse(localStorage.getItem('soccerQueuedPlans')),
+  }));
+  expect(planned.next).toMatchObject({ gameNumber: 1, opponent: 'Game One FC', playerIds: [1], half1: { GK: 1 } });
+  expect(planned.queued).toHaveLength(1);
+  expect(planned.queued[0]).toMatchObject({ gameNumber: 2, opponent: 'Game Two FC', playerIds: [2], half1: { GK: 2 }, half2: { GK: 2 } });
+
+  // Back to game 1 shows game 1's plan untouched.
+  await page.locator('#plan-back-btn').click();
+  await expect(page.locator('#opponent-input')).toHaveValue('Game One FC');
+  await expect(page.locator('#tile-1')).toHaveClass(/selected/);
+  await expect(page.locator('#start-btn')).toBeVisible();
+
+  // The backup carries both plans.
+  const backup = await page.evaluate(async () => {
+    const { buildProfile } = await import('/js/persistence.js');
+    const profile = buildProfile(false);
+    return { gamePlan: profile.gamePlan, queuedPlans: profile.queuedPlans };
+  });
+  expect(backup.gamePlan.gameNumber).toBe(1);
+  expect(backup.queuedPlans.map(p => p.gameNumber)).toEqual([2]);
+
+  // Game 1 finishes: game 2's plan becomes the current plan, surviving a reload.
+  await page.evaluate(async () => {
+    const [{ state }, { goToSetup }] = await Promise.all([import('/js/state.js'), import('/js/summary.js')]);
+    state.gameHistory.push({ date: '2026-10-24', opponent: 'Game One FC', ourScore: 0, theirScore: 0, goals: [], playerStats: [] });
+    localStorage.setItem('soccerGameHistory', JSON.stringify(state.gameHistory));
+    goToSetup();
+  });
+  await expect(page.locator('#game-number-label')).toHaveText('Game 2');
+  await expect(page.locator('#opponent-input')).toHaveValue('Game Two FC');
+  await expect(page.locator('#tile-2')).toHaveClass(/selected/);
+  await expect(page.locator('#tile-1')).not.toHaveClass(/selected/);
+  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineups planned for both halves');
+
+  await page.reload();
+  await expect(page.locator('#opponent-input')).toHaveValue('Game Two FC');
+  const after = await page.evaluate(() => ({
+    next: JSON.parse(localStorage.getItem('soccerGamePlan')),
+    queued: localStorage.getItem('soccerQueuedPlans'),
+  }));
+  expect(after.next.gameNumber).toBe(2);
+  expect(after.queued).toBeNull();
+});

@@ -34,6 +34,8 @@ export const state = {
   playerPhotos: {},
   gameFinalized: false,
   gamePlan: null,
+  queuedPlans: [],
+  planOffset: 0,
   isPrePlanning: false,
   prePlanHalf: null,
   isHalftimeEdit: false

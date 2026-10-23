@@ -1,6 +1,9 @@
 import { state } from './state.js';
 import { closeModal, escHtml, openModal } from './utils.js';
 import { saveGamePlan, saveRoster, saveSettings } from './persistence.js';
+import { MAX_PLAN_OFFSET, getActivePlan, nextGameNumber, targetGameNumber } from './plans.js';
+
+const shouldRestoreChecked = () => !!getActivePlan() || state.planOffset > 0;
 
 const AVATAR_COLORS = ['#1565c0','#6a1b9a','#2e7d32','#c62828',
                        '#00838f','#ad1457','#4527a0','#e65100'];
@@ -235,7 +238,7 @@ export function renderTeamSetupRoster() {
   `).join('');
 }
 
-export function renderGameDayCheckboxes(restoreChecked = !!state.gamePlan) {
+export function renderGameDayCheckboxes(restoreChecked = shouldRestoreChecked()) {
   const empty   = document.getElementById('gameday-empty');
   const content = document.getElementById('gameday-content');
 
@@ -248,17 +251,20 @@ export function renderGameDayCheckboxes(restoreChecked = !!state.gamePlan) {
   empty.style.display   = 'none';
   content.style.display = 'block';
 
-  document.getElementById('game-number-label').textContent = `Game ${state.gameHistory.length + 1}`;
+  document.getElementById('game-number-label').textContent = state.planOffset
+    ? `Game ${targetGameNumber()} — planning ahead`
+    : `Game ${nextGameNumber()}`;
   if (!state.gameDate) state.gameDate = new Date().toISOString().slice(0, 10);
   document.getElementById('game-date-input').value = state.gameDate;
   const oppInput = document.getElementById('opponent-input');
   if (oppInput && !oppInput.value && state.opponentName) oppInput.value = state.opponentName;
 
-  const plannedPlayerIds = state.gamePlan
+  const activePlan = getActivePlan();
+  const plannedPlayerIds = activePlan
     ? [
-        ...(state.gamePlan.playerIds || []),
-        ...Object.values(state.gamePlan.half1 || {}),
-        ...Object.values(state.gamePlan.half2 || {}),
+        ...(activePlan.playerIds || []),
+        ...Object.values(activePlan.half1 || {}),
+        ...Object.values(activePlan.half2 || {}),
       ]
     : [];
   const savedChecked = new Set([...state.savedChecked, ...plannedPlayerIds]);
@@ -283,17 +289,39 @@ export function togglePlayerTile(id) {
   updateCheckedCount();
 }
 
-export function renderRoster(restoreChecked = !!state.gamePlan) {
+export function renderRoster(restoreChecked = shouldRestoreChecked()) {
   renderTeamSetupRoster();
   renderGameDayCheckboxes(restoreChecked);
 }
 
 function syncPlannedAttendance() {
-  if (!state.gamePlan) return;
+  const plan = getActivePlan();
+  if (!plan) return;
   const playerIds = checkedPlayers().map(p => p.id);
   state.savedChecked = new Set(playerIds);
-  state.gamePlan.playerIds = playerIds;
+  plan.playerIds = playerIds;
   saveGamePlan();
+}
+
+// Points the setup screen at a different upcoming game (0 = next game). The
+// current form is saved into its plan first, then the target game's plan (or a
+// blank form) is loaded.
+export function switchPlanOffset(offset) {
+  const target = Math.min(MAX_PLAN_OFFSET, Math.max(0, offset));
+  const current = getActivePlan();
+  if (current) {
+    current.opponent = document.getElementById('opponent-input').value.trim();
+    current.date = state.gameDate;
+    current.playerIds = checkedPlayers().map(p => p.id);
+    saveGamePlan();
+  }
+  state.planOffset = target;
+  const plan = getActivePlan();
+  state.savedChecked = new Set(plan ? plan.playerIds || [] : []);
+  state.opponentName = plan ? plan.opponent || '' : '';
+  state.gameDate = plan ? plan.date || '' : '';
+  document.getElementById('opponent-input').value = state.opponentName;
+  renderGameDayCheckboxes(true);
 }
 
 export function addRosterPlayer() {
@@ -387,7 +415,9 @@ export function checkAllPlayers() {
 export function updateStartBtn() {
   const n = checkedPlayers().length;
   const hasOpponent = document.getElementById('opponent-input').value.trim().length > 0;
-  document.getElementById('start-btn').disabled = n < 1 || !hasOpponent;
+  const startBtn = document.getElementById('start-btn');
+  startBtn.disabled = n < 1 || !hasOpponent;
+  startBtn.style.display = state.planOffset ? 'none' : '';
   const planBtn = document.getElementById('plan-ahead-btn');
   if (planBtn) planBtn.disabled = n < 1;
   updatePlanAheadStatus();
@@ -399,8 +429,20 @@ export function updatePlanAheadStatus() {
   const statusText = document.getElementById('plan-ahead-status-text');
   if (!planBtn || !status) return;
 
-  const hasFull = !!(state.gamePlan && state.gamePlan.half1 && state.gamePlan.half2);
-  const hasPartial = !!(state.gamePlan && (state.gamePlan.half1 || state.gamePlan.half2) && !hasFull);
+  const plan = getActivePlan();
+  const hasFull = !!(plan && plan.half1 && plan.half2);
+  const hasPartial = !!(plan && (plan.half1 || plan.half2) && !hasFull);
+
+  const nextBtn = document.getElementById('plan-next-btn');
+  const backBtn = document.getElementById('plan-back-btn');
+  if (nextBtn) {
+    nextBtn.style.display = hasFull && state.planOffset < MAX_PLAN_OFFSET ? '' : 'none';
+    nextBtn.textContent = `▶ Plan Game ${targetGameNumber() + 1}`;
+  }
+  if (backBtn) {
+    backBtn.style.display = state.planOffset ? '' : 'none';
+    backBtn.textContent = `◀ Back to Game ${targetGameNumber() - 1}`;
+  }
 
   if (hasFull) {
     planBtn.textContent = '📋 Edit Planned Lineups';

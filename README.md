@@ -114,6 +114,7 @@ The main storage keys are:
 - `soccerGameHistory` — completed game records.
 - `soccerActiveGame` — interrupted in-progress game state.
 - `soccerGamePlan` — a saved "Plan Both Halves in Advance" lineup, kept independently so it survives closing the browser before the game starts.
+- `soccerQueuedPlans` — plans for games after the next one (e.g. game 2 of a double header). Once the earlier game ends, the next queued plan becomes `soccerGamePlan`.
 - `theme` — light/dark theme preference.
 
 No data is sent to a server by this app.

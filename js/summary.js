@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { clearActiveGame, exportProfile, saveGameHistory, saveGamePlan, saveRoster, saveSettings } from './persistence.js';
+import { clearActiveGame, exportProfile, saveGameHistory, promoteNextGamePlan, saveGamePlan, saveRoster, saveSettings } from './persistence.js';
 import { avatarHtml, renderGameDayCheckboxes, renderTeamSetupRoster, updatePlanAheadStatus } from './roster.js';
 import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
@@ -307,11 +307,12 @@ export function goToSetup() {
   clearActiveGame();
   state.gameDate       = '';
   state.opponentName   = '';
-  state.gamePlan       = null;
+  state.planOffset     = 0;
   state.isPrePlanning  = false;
   state.prePlanHalf    = null;
-  saveGamePlan();
-  document.getElementById('opponent-input').value = '';
+  // Drops the plan for the game just played and loads game 2's queued plan, if any.
+  promoteNextGamePlan();
+  document.getElementById('opponent-input').value = state.opponentName;
   showScreen('setup-screen');
   renderGameDayCheckboxes();
   updatePlanAheadStatus();
@@ -364,6 +365,8 @@ export function executeStartNewSeason() {
   state.scoreThem    = 0;
   state.gameFinalized = false;
   state.gamePlan      = null;
+  state.queuedPlans   = [];
+  state.planOffset    = 0;
 
   saveRoster();
   saveGameHistory();

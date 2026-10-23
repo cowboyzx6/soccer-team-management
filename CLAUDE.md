@@ -71,6 +71,7 @@ App logic lives in `js/` as browser-native ES modules:
 - `js/utils.js` — DOM helpers (`escHtml`, `fmt`, `showScreen`, `openModal`, `closeModal`, `applyTheme`, `toggleTheme`)
 - `js/persistence.js` - localStorage read/write, import/export validation, file input wiring
 - `js/profile-normalizer.js` - pure profile/game JSON validation and normalization
+- `js/plans.js` — helpers for multi-game plan-ahead: `state.gamePlan` is the next game's plan, `state.queuedPlans` holds later games (double headers), `state.planOffset` is which game the setup screen is editing
 - `js/roster.js` — roster management, attendance tiles, photo upload
 - `js/lineup.js` — starting lineup assignment, GK picker, goalie wheel
 - `js/game.js` — timer, substitutions, goals, score, half/end flow

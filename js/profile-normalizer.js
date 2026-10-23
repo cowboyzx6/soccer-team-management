@@ -200,6 +200,15 @@ export function normalizeProfile(profile, {
 
   const validPlayerIds = uniqueRoster ? new Set(uniqueRoster.map(p => p.id)) : null;
   const gamePlan = normalizeGamePlan(profile.gamePlan, { validPlayerIds });
+  const seenPlanNumbers = new Set();
+  const queuedPlans = (Array.isArray(profile.queuedPlans) ? profile.queuedPlans : [])
+    .map(plan => normalizeGamePlan(plan, { validPlayerIds }))
+    .filter(plan => {
+      if (!plan || seenPlanNumbers.has(plan.gameNumber)) return false;
+      seenPlanNumbers.add(plan.gameNumber);
+      return true;
+    })
+    .slice(0, 10);
 
   if (requireGames && games.length === 0) {
     throw new Error('Profile does not contain any valid game records.');
@@ -211,5 +220,6 @@ export function normalizeProfile(profile, {
     roster: uniqueRoster,
     games,
     gamePlan,
+    queuedPlans,
   };
 }

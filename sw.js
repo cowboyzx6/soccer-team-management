@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.26291.1';
+const CACHE_VERSION = '1.26296.1';
 const CACHE = `stm-${CACHE_VERSION}`;
 const ASSETS = [
   './',
@@ -11,6 +11,7 @@ const ASSETS = [
   './js/game.js',
   './js/lineup.js',
   './js/persistence.js',
+  './js/plans.js',
   './js/profile-normalizer.js',
   './js/roster.js',
   './js/state.js',

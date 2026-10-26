@@ -419,6 +419,60 @@ test('one-player planning backup includes attendance opponent and date', async (
   });
 });
 
+test('restoring a profile with planned sub rounds keeps them attached to the right half', async ({ page }, testInfo) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
+    ]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
+  });
+  await page.reload();
+
+  const profile = {
+    appVersion: '1.0.0',
+    teamName: 'Oyster Blueberries',
+    halfMinutes: 25,
+    roster: [{ id: 1, name: 'Avery', photo: null }, { id: 2, name: 'Blake', photo: null }],
+    games: [],
+    gamePlan: {
+      gameNumber: 1,
+      playerIds: [1, 2],
+      half1: { GK: 1 },
+      half1Subs: [[{ inId: 2, pos: 'GK' }]],
+      half2: { GK: 2 },
+    },
+  };
+  const profilePath = testInfo.outputPath('profile.json');
+  await fs.writeFile(profilePath, JSON.stringify(profile));
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.setInputFiles('#import-file-input', profilePath);
+
+  const gamePlan = await page.evaluate(async () => (await import('/js/state.js')).state.gamePlan);
+  expect(gamePlan.half1Subs).toEqual([[{ inId: 2, pos: 'GK' }]]);
+  expect(gamePlan.half2Subs).toBeUndefined();
+});
+
+test('team backup serializes planned sub rounds for the pending plan', async ({ page }) => {
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.roster = [{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }];
+    state.teamName = 'Oyster Blueberries';
+    state.gamePlan = {
+      gameNumber: 1,
+      playerIds: [1, 2],
+      half1: { GK: 1 },
+      half1Subs: [[{ inId: 2, pos: 'GK' }]],
+      half2: { GK: 2 },
+      half2Subs: [],
+    };
+  });
+  const profile = await page.evaluate(async () => (await import('/js/persistence.js')).buildProfile(false));
+  expect(profile.gamePlan.half1Subs).toEqual([[{ inId: 2, pos: 'GK' }]]);
+  expect(profile.gamePlan.half2Subs).toBeUndefined();
+});
+
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));

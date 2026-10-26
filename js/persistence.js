@@ -140,6 +140,7 @@ export function saveActiveGame() {
       goals: state.goals,
       halfMinutes: state.halfMinutes,
       subPlans: state.subPlans,
+      plannedSubRoundIndex: state.plannedSubRoundIndex,
       gameDate: state.gameDate,
       gamePlan: state.gamePlan
     }));
@@ -178,6 +179,7 @@ export function checkForActiveGame() {
     return inn && !inn.onField && !inn.leftEarly && Object.prototype.hasOwnProperty.call(POSITIONS, pl.pos);
   });
   state.subPick          = null;
+  state.plannedSubRoundIndex = Number.isInteger(saved.plannedSubRoundIndex) ? saved.plannedSubRoundIndex : 0;
   state.gameDate         = saved.gameDate        || new Date().toISOString().slice(0, 10);
   state.gamePlan         = saved.gamePlan        ?? null;
 
@@ -258,6 +260,8 @@ export function buildProfile(includeGameRecord) {
       playerIds: [...new Set([...(plan.playerIds || []), ...lineupPlayerIds])],
       ...(plan.half1 ? { half1: { ...plan.half1 } } : {}),
       ...(plan.half2 ? { half2: { ...plan.half2 } } : {}),
+      ...(plan.half1Subs && plan.half1Subs.length ? { half1Subs: plan.half1Subs } : {}),
+      ...(plan.half2Subs && plan.half2Subs.length ? { half2Subs: plan.half2Subs } : {}),
     };
   };
   const allPlans = [state.gamePlan, ...state.queuedPlans].filter(Boolean);

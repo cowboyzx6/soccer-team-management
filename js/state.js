@@ -38,7 +38,13 @@ export const state = {
   planOffset: 0,
   isPrePlanning: false,
   prePlanHalf: null,
-  isHalftimeEdit: false
+  isHalftimeEdit: false,
+  isPlanningSubs: false,
+  planSubsHalf: null,
+  planSubsRounds: [],
+  planSubsCurrentRound: [],
+  planSubsPick: null,
+  plannedSubRoundIndex: 0
 };
 
 export const POSITIONS = {

@@ -57,6 +57,32 @@ function normalizeLineupMap(value, validPlayerIds = null) {
   return Object.keys(lineup).length ? lineup : null;
 }
 
+function normalizeSubRound(value, baseLineup, validPlayerIds) {
+  if (!Array.isArray(value)) return null;
+  const round = [];
+  const seenIds = new Set();
+  const seenPos = new Set();
+  value.forEach(pair => {
+    if (!pair || typeof pair !== 'object') return;
+    const inId = toPlayerId(pair.inId);
+    const pos = pair.pos;
+    if (inId === null || !VALID_POSITIONS.has(pos)) return;
+    if (validPlayerIds && !validPlayerIds.has(inId)) return;
+    if (seenIds.has(inId) || seenPos.has(pos)) return;
+    seenIds.add(inId);
+    seenPos.add(pos);
+    round.push({ inId, pos });
+  });
+  return round.length ? round : null;
+}
+
+export function normalizeSubRounds(value, baseLineup, validPlayerIds = null) {
+  if (!baseLineup || !Array.isArray(value)) return [];
+  return value
+    .map(round => normalizeSubRound(round, baseLineup, validPlayerIds))
+    .filter(Boolean);
+}
+
 function normalizePlannedLineups(value, validPlayerIds = null) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const half1 = normalizeLineupMap(value.half1, validPlayerIds);
@@ -76,6 +102,8 @@ export function normalizeGamePlan(value, {
   if (!lineups) return null;
   const gameNumber = toPlayerId(value.gameNumber) ?? toPlayerId(defaultGameNumber);
   if (gameNumber === null) return null;
+  const half1Subs = lineups.half1 ? normalizeSubRounds(value.half1Subs, lineups.half1, validPlayerIds) : [];
+  const half2Subs = lineups.half2 ? normalizeSubRounds(value.half2Subs, lineups.half2, validPlayerIds) : [];
   const lineupPlayerIds = Object.values(lineups).flatMap(lineup => Object.values(lineup));
   const playerIds = Array.isArray(value.playerIds)
     ? value.playerIds.map(toPlayerId).filter(id => id !== null)
@@ -92,6 +120,8 @@ export function normalizeGamePlan(value, {
     ...(opponent ? { opponent } : {}),
     playerIds: plannedPlayerIds,
     ...lineups,
+    ...(half1Subs.length ? { half1Subs } : {}),
+    ...(half2Subs.length ? { half2Subs } : {}),
   };
 }
 

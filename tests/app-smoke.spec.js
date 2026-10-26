@@ -818,6 +818,31 @@ test('removing a paired player from the game drops their pair', async ({ page })
   expect(s.subPick).toBeNull();
 });
 
+test('a player removed from the game can be re-added from late arrivals', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.roster = state.players.map(p => ({ id: p.id, name: p.name }));
+  });
+
+  await benchCard(page, 4).locator('.btn-remove-player').click();
+  await page.locator('#remove-player-confirm-btn').click();
+  await expect(benchCard(page, 4)).toHaveCount(0);
+
+  await page.locator('#late-arrival-btn').click();
+  const entry = page.locator('#late-player-list .lineup-player', { hasText: 'Devon' });
+  await expect(entry).toContainText('removed');
+  await entry.click();
+
+  await expect(benchCard(page, 4)).toHaveCount(1);
+  const devon = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const p = state.players.find(pl => pl.id === 4);
+    return { count: state.players.filter(pl => pl.id === 4).length, leftEarly: p.leftEarly, onField: p.onField };
+  });
+  expect(devon).toEqual({ count: 1, leftEarly: false, onField: false });
+});
+
 test('resuming an old saved game drops stale sub plans and picks', async ({ page }) => {
   await page.evaluate(() => {
     const mk = (id, name, position) => ({

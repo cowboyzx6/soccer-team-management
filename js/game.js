@@ -658,8 +658,9 @@ export function setActiveGoalie(id) {
 //  LATE ARRIVAL
 // ------------------------------------------------------------
 export function openLateModal() {
-  const inGameIds = new Set(state.players.map(p => p.id));
-  const available = state.roster.filter(p => !inGameIds.has(p.id));
+  const activeIds = new Set(state.players.filter(p => !p.leftEarly).map(p => p.id));
+  const removedIds = new Set(state.players.filter(p => p.leftEarly).map(p => p.id));
+  const available = state.roster.filter(p => !activeIds.has(p.id));
 
   const list = document.getElementById('late-player-list');
   list.innerHTML = '';
@@ -671,7 +672,7 @@ export function openLateModal() {
       div.className = 'lineup-player';
       div.style.marginBottom = '6px';
       div.innerHTML = `${avatarHtml(p.id, p.name, 30)} ${escHtml(p.name)}
-        <span style="font-size:0.8rem;color:var(--text-muted);">\u2192 bench</span>`;
+        <span style="font-size:0.8rem;color:var(--text-muted);">${removedIds.has(p.id) ? 'removed \u00b7 ' : ''}\u2192 bench</span>`;
       div.addEventListener('click', () => confirmLateArrival(p.id));
       list.appendChild(div);
     });
@@ -687,8 +688,15 @@ export function closeLateModal() {
 export function confirmLateArrival(rosterId) {
   const rosterPlayer = state.roster.find(p => p.id === rosterId);
   if (!rosterPlayer) return;
-  if (state.players.find(p => p.id === rosterId)) { closeLateModal(); return; }
-  state.players.push({
+  const existing = state.players.find(p => p.id === rosterId);
+  if (existing && !existing.leftEarly) { closeLateModal(); return; }
+  if (existing) {
+    // Previously removed from the game: return to the bench, keeping time already played.
+    existing.leftEarly  = false;
+    existing.onField    = false;
+    existing.position   = null;
+    existing.benchSince = state.totalElapsed;
+  } else state.players.push({
     id:            rosterPlayer.id,
     name:          rosterPlayer.name,
     onField:       false,

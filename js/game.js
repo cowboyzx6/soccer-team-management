@@ -187,6 +187,7 @@ export function renderGame() {
   renderGrid('bench-grid', bench, 'bench', fairShare);
 
   renderSubTray();
+  document.getElementById('load-planned-sub-btn').style.display = hasNextPlannedSubRound() ? '' : 'none';
 
   // Hint text
   const hint   = document.getElementById('sub-hint');
@@ -489,6 +490,29 @@ export function addSubPair(inId, pos) {
     state.subPlans = state.subPlans.filter(pl => pl.inId !== inId && pl.pos !== pos);
     state.subPlans.push({ inId, pos });
   }
+  renderGame();
+  saveActiveGame();
+}
+
+function plannedRoundsForCurrentHalf() {
+  const plan = state.gamePlan;
+  if (!plan) return [];
+  return (state.currentHalf === 2 ? plan.half2Subs : plan.half1Subs) || [];
+}
+
+export function hasNextPlannedSubRound() {
+  return state.plannedSubRoundIndex < plannedRoundsForCurrentHalf().length;
+}
+
+export function loadNextPlannedSubRound() {
+  const rounds = plannedRoundsForCurrentHalf();
+  const round = rounds[state.plannedSubRoundIndex];
+  if (!round) return;
+  state.plannedSubRoundIndex += 1;
+  round.forEach(({ inId, pos }) => {
+    const inn = state.players.find(p => p.id === inId);
+    if (inn && !inn.onField && !inn.leftEarly) addSubPair(inId, pos);
+  });
   renderGame();
   saveActiveGame();
 }
@@ -855,6 +879,7 @@ export function startSecondHalf(usePlannedLineup = false) {
   state.halfClock        = HALF_DURATION();
   state.halfActionIsEnd  = true;
   state.subPlans         = [];
+  state.plannedSubRoundIndex = 0;
   state.subPick          = null;
   lastSubUndo            = null;
 

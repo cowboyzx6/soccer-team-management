@@ -917,6 +917,46 @@ test('empty-slot pairs wait for Sub Now and re-pairing replaces the old pair', a
   expect(s.subPick).toBeNull();
 });
 
+test('Planned Subs button loads the next planned round into the sub tray, skipping no-shows', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.gamePlan = {
+      gameNumber: 1,
+      half1: { GK: 1, CF: 2, LM: 3 },
+      half1Subs: [[{ inId: 4, pos: 'CF' }, { inId: 999, pos: 'LM' }]],
+    };
+    const { renderGame } = await import('/js/game.js');
+    renderGame();
+  });
+
+  await expect(page.locator('#load-planned-sub-btn')).toBeVisible();
+  await page.locator('#load-planned-sub-btn').click();
+
+  const plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
+  expect(plans).toEqual([{ inId: 4, pos: 'CF' }]);
+  await expect(page.locator('#load-planned-sub-btn')).toBeHidden();
+});
+
+test('Planned Subs button stays hidden with no plan and resets pointer at halftime', async ({ page }) => {
+  await startLiveGame(page);
+  await expect(page.locator('#load-planned-sub-btn')).toBeHidden();
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.gamePlan = { gameNumber: 1, half1: { GK: 1 }, half1Subs: [[{ inId: 4, pos: 'CF' }]], half2: { GK: 1 }, half2Subs: [[{ inId: 5, pos: 'CF' }]] };
+    const { renderGame, startSecondHalf, loadNextPlannedSubRound } = await import('/js/game.js');
+    renderGame();
+    loadNextPlannedSubRound();
+    startSecondHalf(false);
+  });
+
+  await expect(page.locator('#load-planned-sub-btn')).toBeVisible();
+  await page.locator('#load-planned-sub-btn').click();
+  const plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
+  expect(plans).toEqual([{ inId: 5, pos: 'CF' }]);
+});
+
 test('removing a paired player from the game drops their pair', async ({ page }) => {
   await startLiveGame(page);
 

@@ -87,6 +87,7 @@ import {
   handleHalfEnd,
   holdGameRenders,
   isFieldClickSuppressed,
+  loadNextPlannedSubRound,
   moveFieldPlayerToBench,
   openGoalModal,
   openLateModal,
@@ -258,6 +259,7 @@ document.getElementById('sort-name-btn').addEventListener('click', () => setBenc
 document.getElementById('sort-time-btn').addEventListener('click', () => setBenchSort('time'));
 document.getElementById('sort-priority-btn').addEventListener('click', () => setBenchSort('priority'));
 document.getElementById('late-arrival-btn').addEventListener('click', openLateModal);
+document.getElementById('load-planned-sub-btn').addEventListener('click', loadNextPlannedSubRound);
 document.getElementById('sub-now-btn').addEventListener('click', executeAllPlans);
 document.getElementById('undo-sub-btn').addEventListener('click', undoLastSub);
 document.getElementById('sub-tray-list').addEventListener('click', e => {

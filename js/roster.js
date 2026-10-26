@@ -456,6 +456,9 @@ export function updatePlanAheadStatus() {
     planBtn.textContent = '📋 Plan Both Halves in Advance';
     status.style.display = 'none';
   }
+
+  const subsBtn = document.getElementById('plan-subs-btn');
+  if (subsBtn) subsBtn.disabled = !hasFull;
 }
 
 export function checkedPlayers() {

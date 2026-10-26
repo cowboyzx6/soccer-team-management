@@ -473,6 +473,64 @@ test('team backup serializes planned sub rounds for the pending plan', async ({ 
   expect(profile.gamePlan.half2Subs).toBeUndefined();
 });
 
+test('Plan Subs is disabled until both halves have a lineup, then opens the screen', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
+    ]));
+  });
+  await page.reload();
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+
+  await expect(page.locator('#plan-subs-btn')).toBeDisabled();
+
+  await page.locator('#plan-ahead-btn').click();
+  for (let half = 1; half <= 2; half++) {
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+    await page.locator('#launch-btn').click();
+  }
+
+  await expect(page.locator('#plan-subs-btn')).toBeEnabled();
+  await page.locator('#plan-subs-btn').click();
+  await expect(page.locator('#plan-subs-screen')).toHaveClass(/active/);
+  await expect(page.locator('#plan-subs-field-positions [data-position="GK"]')).toContainText('Avery');
+});
+
+test('planning one sub round in Half 1 splits projected minutes evenly', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
+    ]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 20 }));
+  });
+  await page.reload();
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#plan-ahead-btn').click();
+  await page.locator('#lineup-field-positions [data-position="GK"]').click();
+  await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+  await page.locator('#launch-btn').click();
+  await page.locator('#lineup-field-positions [data-position="GK"]').click();
+  await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+  await page.locator('#launch-btn').click();
+
+  await page.locator('#plan-subs-btn').click();
+  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="2"]').click();
+  await page.locator('#plan-subs-field-positions [data-position="GK"]').click();
+  await page.locator('#plan-subs-add-round-btn').click();
+
+  const rows = page.locator('#plan-subs-projection-body tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: 'Avery' })).toContainText('10:00');
+  await expect(rows.filter({ hasText: 'Blake' })).toContainText('10:00');
+});
+
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));

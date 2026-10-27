@@ -531,6 +531,113 @@ test('planning one sub round in Half 1 splits projected minutes evenly', async (
   await expect(rows.filter({ hasText: 'Blake' })).toContainText('10:00');
 });
 
+test('Plan Subs next-button label resets after a full run and after going back to Half 1', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
+    ]));
+  });
+  await page.reload();
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#plan-ahead-btn').click();
+  for (let half = 1; half <= 2; half++) {
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+    await page.locator('#launch-btn').click();
+  }
+
+  await page.locator('#plan-subs-btn').click();
+  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
+  await page.locator('#plan-subs-next-btn').click();
+  await expect(page.locator('#plan-subs-next-btn')).toHaveText('Finish');
+  await page.locator('#plan-subs-back-btn').click();
+  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
+  await page.locator('#plan-subs-next-btn').click(); // half1 -> half2 again
+  await expect(page.locator('#plan-subs-next-btn')).toHaveText('Finish');
+  await page.locator('#plan-subs-next-btn').click(); // half2 -> finish, back to setup-screen
+
+  // Re-open Plan Subs after a completed run — label must not still say "Finish".
+  await page.locator('#plan-subs-btn').click();
+  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
+});
+
+test('removing an earlier planned-sub round does not double-book a player in the projection', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' },
+    ]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 30 }));
+  });
+  await page.reload();
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#tile-3').click();
+  await page.locator('#plan-ahead-btn').click();
+  for (let half = 1; half <= 2; half++) {
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+    await page.locator('#lineup-field-positions [data-position="CF"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="2"]').click();
+    await page.locator('#launch-btn').click();
+  }
+
+  await page.locator('#plan-subs-btn').click();
+  // Round 1: Casey in for Avery at GK.
+  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="3"]').click();
+  await page.locator('#plan-subs-field-positions [data-position="GK"]').click();
+  await page.locator('#plan-subs-add-round-btn').click();
+  // Round 2: Avery (now benched after round 1) in for Blake at CF.
+  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="1"]').click();
+  await page.locator('#plan-subs-field-positions [data-position="CF"]').click();
+  await page.locator('#plan-subs-add-round-btn').click();
+
+  // Remove round 1 — round 2 ("Avery in for Blake at CF") now references a
+  // player (Avery) who, with round 1 gone, is still the GK starter. Applying
+  // round 2 unconditionally would put Avery at both GK and CF simultaneously.
+  await page.locator('#plan-subs-rounds-list .sub-tray-remove[data-round-index="0"]').click();
+
+  const totals = await page.evaluate(async () => {
+    const { computeProjectedSubMinutes } = await import('/js/plan-subs.js');
+    return computeProjectedSubMinutes();
+  });
+  const halfSeconds = 30 * 60;
+  // No player can legitimately be credited more than a half's own length —
+  // double-booking Avery at two positions in the same stretch would push her
+  // half1 total above this.
+  Object.values(totals).forEach(t => expect(t.half1).toBeLessThanOrEqual(halfSeconds));
+  // Blake must not be silently dropped from the projection by the stale pair.
+  expect(totals[2].half1).toBeGreaterThan(0);
+});
+
+test('Plan Subs bench list only shows players checked in for this game', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' },
+    ]));
+  });
+  await page.reload();
+  await page.locator('#game-date-input').fill('2026-09-26');
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  // Casey (id 3) is NOT checked in for this game.
+  await page.locator('#plan-ahead-btn').click();
+  for (let half = 1; half <= 2; half++) {
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
+    await page.locator('#launch-btn').click();
+  }
+
+  await page.locator('#plan-subs-btn').click();
+  await expect(page.locator('#plan-subs-bench-list .lineup-player[data-player-id="2"]')).toBeVisible();
+  await expect(page.locator('#plan-subs-bench-list .lineup-player[data-player-id="3"]')).toHaveCount(0);
+});
+
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 3, name: 'Avery' }]));

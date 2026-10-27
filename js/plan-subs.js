@@ -14,10 +14,17 @@ function rosterNameLookup() {
 }
 
 // Applies rounds[0..roundCount) in order onto a copy of the base position map.
+// Skips a pair whose incoming player is already elsewhere in the map, so
+// removing an earlier round can't leave a later round double-booking a player.
 function effectiveLineupAt(baseLineup, rounds, roundCount) {
   const map = { ...baseLineup };
   rounds.slice(0, roundCount).forEach(round => {
-    round.forEach(({ inId, pos }) => { map[pos] = inId; });
+    const onField = new Set(Object.values(map));
+    round.forEach(({ inId, pos }) => {
+      if (onField.has(inId)) return;
+      map[pos] = inId;
+      onField.add(inId);
+    });
   });
   return map;
 }
@@ -32,6 +39,7 @@ export function goToPlanSubs() {
   state.planSubsPick = null;
   document.getElementById('plan-subs-header-title').textContent = `${state.teamName} — Plan Half 1 Subs`;
   document.getElementById('plan-subs-back-btn').textContent = '← Back';
+  document.getElementById('plan-subs-next-btn').textContent = 'Next: Half 2 Subs →';
   showScreen('plan-subs-screen');
   renderPlanSubsScreen();
 }
@@ -45,6 +53,7 @@ export function goBackFromPlanSubs() {
     state.planSubsPick = null;
     document.getElementById('plan-subs-header-title').textContent = `${state.teamName} — Plan Half 1 Subs`;
     document.getElementById('plan-subs-back-btn').textContent = '← Back';
+    document.getElementById('plan-subs-next-btn').textContent = 'Next: Half 2 Subs →';
     renderPlanSubsScreen();
     return;
   }
@@ -162,6 +171,8 @@ export function renderPlanSubsScreen() {
   const effective = effectiveLineupAt(baseLineup, state.planSubsRounds, state.planSubsRounds.length);
   const names = rosterNameLookup();
   const pick = state.planSubsPick;
+  const plan = getActivePlan();
+  const gamePlayerIds = new Set(plan && Array.isArray(plan.playerIds) ? plan.playerIds : []);
 
   const container = document.getElementById('plan-subs-field-positions');
   container.innerHTML = '';
@@ -187,7 +198,7 @@ export function renderPlanSubsScreen() {
 
   const onFieldIds = new Set(Object.values(effective));
   const pendingInIds = new Set(state.planSubsCurrentRound.map(p => p.inId));
-  const bench = state.roster.filter(p => !onFieldIds.has(p.id) && !pendingInIds.has(p.id));
+  const bench = state.roster.filter(p => gamePlayerIds.has(p.id) && !onFieldIds.has(p.id) && !pendingInIds.has(p.id));
   document.getElementById('plan-subs-bench-list').innerHTML = bench.map(p => {
     const isPicked = pick?.zone === 'bench' && pick.id === p.id;
     const [avatarBg, avatarContent] = avatarParts(p.id, p.name);

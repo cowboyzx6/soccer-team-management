@@ -141,6 +141,7 @@ export function saveActiveGame() {
       halfMinutes: state.halfMinutes,
       subPlans: state.subPlans,
       plannedSubRoundIndex: state.plannedSubRoundIndex,
+      pendingPlannedRoundIndex: state.pendingPlannedRoundIndex,
       gameDate: state.gameDate,
       gamePlan: state.gamePlan
     }));
@@ -180,6 +181,7 @@ export function checkForActiveGame() {
   });
   state.subPick          = null;
   state.plannedSubRoundIndex = Number.isInteger(saved.plannedSubRoundIndex) ? saved.plannedSubRoundIndex : 0;
+  state.pendingPlannedRoundIndex = Number.isInteger(saved.pendingPlannedRoundIndex) ? saved.pendingPlannedRoundIndex : null;
   state.gameDate         = saved.gameDate        || new Date().toISOString().slice(0, 10);
   state.gamePlan         = saved.gamePlan        ?? null;
 

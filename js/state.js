@@ -44,7 +44,8 @@ export const state = {
   planSubsRounds: [],
   planSubsCurrentRound: [],
   planSubsPick: null,
-  plannedSubRoundIndex: 0
+  plannedSubRoundIndex: 0,
+  pendingPlannedRoundIndex: null
 };
 
 export const POSITIONS = {

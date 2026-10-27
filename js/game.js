@@ -508,7 +508,7 @@ export function loadNextPlannedSubRound() {
   const rounds = plannedRoundsForCurrentHalf();
   const round = rounds[state.plannedSubRoundIndex];
   if (!round) return;
-  state.plannedSubRoundIndex += 1;
+  state.pendingPlannedRoundIndex = state.plannedSubRoundIndex;
   round.forEach(({ inId, pos }) => {
     const inn = state.players.find(p => p.id === inId);
     if (inn && !inn.onField && !inn.leftEarly) addSubPair(inId, pos);
@@ -614,6 +614,10 @@ export function executeAllPlans() {
   });
   state.subPlans = [];
   state.subPick  = null;
+  if (state.pendingPlannedRoundIndex !== null) {
+    state.plannedSubRoundIndex = Math.max(state.plannedSubRoundIndex, state.pendingPlannedRoundIndex + 1);
+    state.pendingPlannedRoundIndex = null;
+  }
   renderGame();
   saveActiveGame();
 }
@@ -880,6 +884,7 @@ export function startSecondHalf(usePlannedLineup = false) {
   state.halfActionIsEnd  = true;
   state.subPlans         = [];
   state.plannedSubRoundIndex = 0;
+  state.pendingPlannedRoundIndex = null;
   state.subPick          = null;
   lastSubUndo            = null;
 

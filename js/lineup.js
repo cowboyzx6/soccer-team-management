@@ -926,6 +926,7 @@ function initGame() {
   state.subPick = null;
   state.subPlans = [];
   state.plannedSubRoundIndex = 0;
+  state.pendingPlannedRoundIndex = null;
   state.selectedLineupSlot = null;
   state.halfActionIsEnd = false;
   state.activeGoalieId = state.goalie1Id;

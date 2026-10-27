@@ -1042,6 +1042,15 @@ test('Planned Subs button loads the next planned round into the sub tray, skippi
 
   const plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
   expect(plans).toEqual([{ inId: 4, pos: 'CF' }]);
+  // Loading a round no longer consumes it by itself — only executing it does
+  // (see "executing a loaded planned round advances the pointer" below) — so
+  // the button stays visible until Sub Now actually runs.
+  await expect(page.locator('#load-planned-sub-btn')).toBeVisible();
+  await page.evaluate(async () => {
+    const { executeAllPlans, renderGame } = await import('/js/game.js');
+    executeAllPlans();
+    renderGame();
+  });
   await expect(page.locator('#load-planned-sub-btn')).toBeHidden();
 });
 
@@ -1062,6 +1071,94 @@ test('Planned Subs button stays hidden with no plan and resets pointer at halfti
   await page.locator('#load-planned-sub-btn').click();
   const plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
   expect(plans).toEqual([{ inId: 5, pos: 'CF' }]);
+});
+
+test('clearing a loaded planned round without executing it lets it be reloaded', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.gamePlan = {
+      gameNumber: 1,
+      half1: { GK: 1, CF: 2, LM: 3 },
+      half1Subs: [[{ inId: 4, pos: 'CF' }]],
+    };
+    const { renderGame } = await import('/js/game.js');
+    renderGame();
+  });
+
+  await page.locator('#load-planned-sub-btn').click();
+  let plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
+  expect(plans).toEqual([{ inId: 4, pos: 'CF' }]);
+
+  // Coach changes their mind and removes the pair instead of hitting Sub Now.
+  await page.evaluate(async () => {
+    const { removeSubPair, renderGame } = await import('/js/game.js');
+    removeSubPair('CF');
+    renderGame();
+  });
+  plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
+  expect(plans).toEqual([]);
+
+  // The round was never executed, so it must still be loadable.
+  await expect(page.locator('#load-planned-sub-btn')).toBeVisible();
+  await page.locator('#load-planned-sub-btn').click();
+  plans = await page.evaluate(async () => (await import('/js/state.js')).state.subPlans);
+  expect(plans).toEqual([{ inId: 4, pos: 'CF' }]);
+});
+
+test('executing a loaded planned round advances the pointer so it cannot be reloaded', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.gamePlan = {
+      gameNumber: 1,
+      half1: { GK: 1, CF: 2, LM: 3 },
+      half1Subs: [[{ inId: 4, pos: 'CF' }]],
+    };
+    const { renderGame } = await import('/js/game.js');
+    renderGame();
+  });
+
+  await page.locator('#load-planned-sub-btn').click();
+  await page.evaluate(async () => {
+    const { executeAllPlans, renderGame } = await import('/js/game.js');
+    executeAllPlans();
+    renderGame();
+  });
+
+  await expect(page.locator('#load-planned-sub-btn')).toBeHidden();
+  const onField = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.players.find(p => p.position === 'CF')?.id;
+  });
+  expect(onField).toBe(4);
+});
+
+test('a pending planned round survives saveActiveGame/checkForActiveGame round-trip', async ({ page }) => {
+  await startLiveGame(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    state.gamePlan = {
+      gameNumber: 1,
+      half1: { GK: 1, CF: 2, LM: 3 },
+      half1Subs: [[{ inId: 4, pos: 'CF' }]],
+    };
+    const { renderGame } = await import('/js/game.js');
+    renderGame();
+  });
+  await page.locator('#load-planned-sub-btn').click();
+
+  const roundTripped = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { saveActiveGame } = await import('/js/persistence.js');
+    saveActiveGame();
+    const before = state.pendingPlannedRoundIndex;
+    state.pendingPlannedRoundIndex = null; // simulate a fresh load before restore runs
+    const raw = JSON.parse(localStorage.getItem('soccerActiveGame'));
+    return { savedValue: raw.pendingPlannedRoundIndex, before };
+  });
+  expect(roundTripped.before).toBe(0);
+  expect(roundTripped.savedValue).toBe(0);
 });
 
 test('removing a paired player from the game drops their pair', async ({ page }) => {

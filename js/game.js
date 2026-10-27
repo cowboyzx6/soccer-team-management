@@ -423,6 +423,7 @@ export function confirmRemovePlayer() {
   state.subPlans = state.subPlans.filter(
     pl => pl.inId !== removePlayerId && (!removedPos || pl.pos !== removedPos)
   );
+  if (!state.subPlans.length) state.pendingPlannedRoundIndex = null;
   if (state.activeGoalieId === removePlayerId) state.activeGoalieId = null;
   state.subPick = null;
   lastSubUndo = null;
@@ -506,19 +507,29 @@ export function hasNextPlannedSubRound() {
 
 export function loadNextPlannedSubRound() {
   const rounds = plannedRoundsForCurrentHalf();
-  const round = rounds[state.plannedSubRoundIndex];
+  const roundIndex = state.plannedSubRoundIndex;
+  const round = rounds[roundIndex];
   if (!round) return;
-  state.pendingPlannedRoundIndex = state.plannedSubRoundIndex;
+  let added = false;
   round.forEach(({ inId, pos }) => {
     const inn = state.players.find(p => p.id === inId);
-    if (inn && !inn.onField && !inn.leftEarly) addSubPair(inId, pos);
+    if (inn && !inn.onField && !inn.leftEarly) { addSubPair(inId, pos); added = true; }
   });
+  if (added) {
+    state.pendingPlannedRoundIndex = roundIndex;
+  } else {
+    // Every pair in this round was unusable (no-show, already on field, left
+    // early) — nothing was loaded to execute, so there's nothing to wait on.
+    // Advance past it now instead of permanently blocking every round after it.
+    state.plannedSubRoundIndex = roundIndex + 1;
+  }
   renderGame();
   saveActiveGame();
 }
 
 export function removeSubPair(pos) {
   state.subPlans = state.subPlans.filter(pl => pl.pos !== pos);
+  if (!state.subPlans.length) state.pendingPlannedRoundIndex = null;
   renderGame();
   saveActiveGame();
 }
@@ -542,6 +553,8 @@ function snapshotForUndo(ids) {
     goalie1Id:      state.goalie1Id,
     goalie2Id:      state.goalie2Id,
     subPlans:       [],
+    plannedSubRoundIndex:    state.plannedSubRoundIndex,
+    pendingPlannedRoundIndex: state.pendingPlannedRoundIndex,
   };
 }
 
@@ -559,6 +572,8 @@ export function undoLastSub() {
   state.activeGoalieId = snap.activeGoalieId;
   state.goalie1Id      = snap.goalie1Id;
   state.goalie2Id      = snap.goalie2Id;
+  state.plannedSubRoundIndex    = snap.plannedSubRoundIndex;
+  state.pendingPlannedRoundIndex = snap.pendingPlannedRoundIndex;
 
   // Put the executed pairs back in the tray; drop newer pairs that clash with them
   // or whose incoming player is back on the field.
@@ -636,6 +651,7 @@ export function moveFieldPlayerToBench(id) {
   player.position   = null;
   player.benchSince = state.totalElapsed;
   state.subPlans = state.subPlans.filter(pl => pl.inId !== id && pl.pos !== vacatedPos);
+  if (!state.subPlans.length) state.pendingPlannedRoundIndex = null;
   state.subPick = null;
   if (state.activeGoalieId === id) state.activeGoalieId = null;
   renderGame();
@@ -669,6 +685,7 @@ export function moveFieldPlayerToPosition(fromId, targetPos) {
 
   const affectedPositions = new Set([fromPos, targetPos].filter(Boolean));
   state.subPlans = state.subPlans.filter(pl => !affectedPositions.has(pl.pos));
+  if (!state.subPlans.length) state.pendingPlannedRoundIndex = null;
 
   state.subPick = null;
   lastSubUndo = null;

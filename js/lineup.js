@@ -375,7 +375,7 @@ export function renderLineup() {
   renderProjection();
 }
 
-// The four planned quarters as { half, lineup }, using the on-screen draft for
+// The four planned quarters as { q, half, lineup }, using the on-screen draft for
 // the quarter being edited and the saved plan for the rest. A mid-half quarter
 // that has no saved sub round assumes no change from the start of its half; a
 // half with no start lineup yet contributes nothing.
@@ -388,8 +388,9 @@ function plannedQuarters() {
     const startQ = half * 2 - 1;
     const base = current === startQ ? draft : plan && plan[`half${half}`];
     if (!base) return;
-    quarters.push({ half, lineup: base });
+    quarters.push({ q: startQ, half, lineup: base });
     quarters.push({
+      q: startQ + 1,
       half,
       lineup: current === startQ + 1 ? draft : effectiveLineupAt(base, (plan && plan[`half${half}Subs`]) || [], 1),
     });
@@ -582,17 +583,15 @@ export function renderLineupField() {
   });
 }
 
-// While pre-planning, tells whether `playerId` already has a saved spot in
-// the half currently NOT being edited, so the bench card can flag it (e.g.
-// editing Half 2 while she's slotted at CF for Half 1).
-function otherHalfAssignment(playerId) {
-  const plan = getActivePlan();
-  if (!state.isPrePlanning || !plan) return null;
-  const otherHalf = state.prePlanQuarter <= 2 ? 2 : 1;
-  const map = plan[`half${otherHalf}`];
-  if (!map) return null;
-  const entry = Object.entries(map).find(([, id]) => id === playerId);
-  return entry ? { half: otherHalf, position: entry[0] } : null;
+// While pre-planning, the other quarters (not the one being edited) in which
+// `playerId` is already on the field, e.g. "Q1, Q2", so the bench card can show
+// where a player has already played.
+function quartersPlayed(playerId) {
+  if (!state.isPrePlanning) return '';
+  return plannedQuarters()
+    .filter(({ q, lineup }) => q !== state.prePlanQuarter && Object.values(lineup).includes(playerId))
+    .map(({ q }) => `Q${q}`)
+    .join(', ');
 }
 
 function renderLineupPlayers() {
@@ -622,10 +621,8 @@ function renderLineupPlayers() {
     const item = document.createElement('div');
     item.className = 'lineup-player' + (p.id === state.selectedLineupPlayer ? ' selected' : '');
     item.dataset.playerId = String(p.id);
-    const otherHalf = otherHalfAssignment(p.id);
-    const badge = otherHalf
-      ? `<span class="lineup-half-badge">H${otherHalf.half} \u00b7 ${otherHalf.position}</span>`
-      : '';
+    const played = quartersPlayed(p.id);
+    const badge = played ? `<span class="lineup-half-badge">${played}</span>` : '';
     item.innerHTML = `${badge}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
     item.onclick = () => lineupPlayerTap(p.id);
     list.appendChild(item);

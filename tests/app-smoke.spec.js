@@ -299,6 +299,33 @@ test('planning shows projected minutes per player that update as quarters change
   await expect(row(2).locator('td').nth(1)).toHaveText('12:00');
 });
 
+test('while planning, bench cards show which other quarters a player is already in', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' }]));
+  });
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  for (const id of [1, 2, 3]) await page.locator(`#tile-${id}`).click();
+  await page.locator('#plan-ahead-btn').click();
+
+  const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
+  const card = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
+
+  // Q1: Avery in goal, Blake at CF. Q2: Casey replaces Blake at CF.
+  await slot('GK').click(); await card(1).click();
+  await slot('CF').click(); await card(2).click();
+  await page.locator('#launch-btn').click();
+  await slot('CF').click();
+  await slot('CF').click(); await card(3).click();
+  await page.locator('#launch-btn').click();
+
+  // Q3 starts empty: Avery played Q1 and Q2, Blake only Q1, Casey only Q2.
+  await expect(page.locator('#lineup-header-title')).toContainText('Q3');
+  await expect(card(1).locator('.lineup-half-badge')).toHaveText('Q1, Q2');
+  await expect(card(2).locator('.lineup-half-badge')).toHaveText('Q1');
+  await expect(card(3).locator('.lineup-half-badge')).toHaveText('Q2');
+});
+
 test('lineup drag uses an expanded drop zone around position slots', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([

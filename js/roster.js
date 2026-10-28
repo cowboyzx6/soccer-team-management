@@ -414,9 +414,8 @@ export function checkAllPlayers() {
 
 export function updateStartBtn() {
   const n = checkedPlayers().length;
-  const hasOpponent = document.getElementById('opponent-input').value.trim().length > 0;
   const startBtn = document.getElementById('start-btn');
-  startBtn.disabled = n < 1 || !hasOpponent;
+  startBtn.disabled = n < 1;
   startBtn.style.display = state.planOffset ? 'none' : '';
   const planBtn = document.getElementById('plan-ahead-btn');
   if (planBtn) planBtn.disabled = n < 1;
@@ -457,7 +456,7 @@ export function updatePlanAheadStatus() {
     status.style.display = 'none';
   }
 
-  document.getElementById('start-btn').textContent = hasFull ? 'Start Game →' : 'Set Starting Lineup →';
+  document.getElementById('start-btn').textContent = hasFull ? '⚽ Start Game' : '⚽ Set Starting Lineup';
 
 }
 

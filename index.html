@@ -51,7 +51,7 @@
       <div class="game-info-row">
         <span class="game-number-badge" id="game-number-label">Game 1</span>
         <input class="game-date-input" type="date" id="game-date-input">
-        <input class="text-input" type="text" id="opponent-input" placeholder="Opponent (required)..." maxlength="30" autocomplete="off">
+        <input class="text-input" type="text" id="opponent-input" placeholder="Opponent..." maxlength="30" autocomplete="off">
       </div>
 
       <div class="section-header" style="margin-top:16px;">
@@ -66,19 +66,21 @@
 
       <div id="gameday-roster" class="gameday-grid"></div>
 
+      <div class="gameday-actions">
       <button class="btn btn-green btn-full" id="start-btn" disabled>
-        Set Starting Lineup &#8594;
+        &#9917; Set Starting Lineup
       </button>
 
-      <button class="btn btn-blue btn-full" id="plan-ahead-btn" disabled style="margin-top:8px;">
+      <button class="btn btn-blue btn-full" id="plan-ahead-btn" disabled>
         &#128203; Plan Lineup in Advance
       </button>
-      <div id="plan-ahead-status" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:0.78rem;color:var(--text-muted);">
+      <div id="plan-ahead-status" style="display:none;align-items:center;justify-content:space-between;gap:8px;font-size:0.78rem;color:var(--text-muted);">
         <span id="plan-ahead-status-text">&#9989; Lineup planned for all four quarters</span>
         <button class="btn-sm btn-gray" id="plan-ahead-clear-btn" style="padding:4px 10px;font-size:0.72rem;">Clear Plan</button>
       </div>
-      <button class="btn btn-gray btn-full" id="plan-next-btn" style="display:none;margin-top:8px;">&#9654; Plan next game</button>
-      <button class="btn btn-gray btn-full" id="plan-back-btn" style="display:none;margin-top:8px;">&#9664; Back</button>
+      <button class="btn btn-gray btn-full" id="plan-next-btn" style="display:none;">&#9654; Plan next game</button>
+      <button class="btn btn-gray btn-full" id="plan-back-btn" style="display:none;">&#9664; Back</button>
+      </div>
     </div>
   </div>
 </div>

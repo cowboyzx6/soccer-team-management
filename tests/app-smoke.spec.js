@@ -116,6 +116,19 @@ test('attendance can reach lineup screen', async ({ page }) => {
   await expect(page.locator('#lineup-header-title')).toContainText('Oyster Blueberries');
 });
 
+test('Set Starting Lineup only needs a player, not an opponent name', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+  });
+  await page.reload();
+
+  await expect(page.locator('#start-btn')).toBeDisabled();
+  await page.locator('#tile-1').click();
+  await expect(page.locator('#opponent-input')).toHaveValue('');
+  await expect(page.locator('#start-btn')).toBeEnabled();
+  await expect(page.locator('#plan-ahead-btn')).toBeEnabled();
+});
+
 test('Game Day Settings in the menu holds the half length and minimum play controls', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
@@ -627,6 +640,8 @@ test('restoring a profile with planned sub rounds keeps them attached to the rig
   page.once('dialog', dialog => dialog.accept());
   await page.setInputFiles('#import-file-input', profilePath);
 
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.gamePlan?.half1Subs))
+    .toEqual([[{ inId: 2, pos: 'GK' }]]);
   const gamePlan = await page.evaluate(async () => (await import('/js/state.js')).state.gamePlan);
   expect(gamePlan.half1Subs).toEqual([[{ inId: 2, pos: 'GK' }]]);
   expect(gamePlan.half2Subs).toBeUndefined();

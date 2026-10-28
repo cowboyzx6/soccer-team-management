@@ -316,6 +316,9 @@
       font-size: 0.78rem;
     }
 
+    .gameday-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .gameday-actions .btn-full { margin-top: 0; }
+
     .btn-full {
       display: inline-flex;
       align-items: center;

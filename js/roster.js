@@ -457,6 +457,8 @@ export function updatePlanAheadStatus() {
     status.style.display = 'none';
   }
 
+  document.getElementById('start-btn').textContent = hasFull ? 'Start Game →' : 'Set Starting Lineup →';
+
   const subsBtn = document.getElementById('plan-subs-btn');
   if (subsBtn) subsBtn.disabled = !hasFull;
 }

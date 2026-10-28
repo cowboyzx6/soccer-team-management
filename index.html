@@ -29,6 +29,7 @@
       <div class="setup-menu-wrap">
         <button id="overflow-menu-btn" class="btn btn-gray" style="font-size:0.82rem;padding:6px 14px;">&#8943;</button>
         <div id="overflow-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:100;min-width:160px;">
+          <button class="overflow-menu-item" id="gameday-settings-btn"><span class="overflow-menu-icon">&#9202;</span><span class="overflow-menu-label">Game Day Settings</span></button>
           <button class="overflow-menu-item" id="review-game-btn"><span class="overflow-menu-icon">&#128202;</span><span class="overflow-menu-label">Review Game</span></button>
           <button class="overflow-menu-item" id="review-season-btn"><span class="overflow-menu-icon">&#128200;</span><span class="overflow-menu-label">Review Season</span></button>
           <button class="overflow-menu-item" id="team-settings-btn"><span class="overflow-menu-icon">&#9881;</span><span class="overflow-menu-label">Team Settings</span></button>
@@ -64,24 +65,6 @@
       </div>
 
       <div id="gameday-roster" class="gameday-grid"></div>
-
-      <div class="half-duration-row">
-        <span class="half-duration-label">Minutes per half</span>
-        <div class="half-duration-controls">
-          <button class="btn-stepper" id="half-minus-btn">&#8722;</button>
-          <span class="half-duration-value" id="half-minutes-display">25 min</span>
-          <button class="btn-stepper" id="half-plus-btn">+</button>
-        </div>
-      </div>
-
-      <div class="half-duration-row">
-        <span class="half-duration-label">Minimum Play Time</span>
-        <div class="half-duration-controls">
-          <button class="btn-stepper" id="min-play-minus-btn">&#8722;</button>
-          <span class="half-duration-value" id="min-play-display">off</span>
-          <button class="btn-stepper" id="min-play-plus-btn">+</button>
-        </div>
-      </div>
 
       <button class="btn btn-green btn-full" id="start-btn" disabled>
         Set Starting Lineup &#8594;
@@ -173,6 +156,34 @@
       <button class="btn btn-blue" id="new-season-backup-btn">Download Archive</button>
       <button class="btn btn-red" id="new-season-confirm-btn">Start Fresh</button>
       <button class="btn btn-gray" id="new-season-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!--  GAME DAY SETTINGS MODAL                                    -->
+<!-- ============================================================ -->
+<div id="gameday-settings-modal" class="overlay hidden">
+  <div class="modal">
+    <h3>Game Day Settings</h3>
+    <div class="half-duration-row">
+      <span class="half-duration-label">Minutes per half</span>
+      <div class="half-duration-controls">
+        <button class="btn-stepper" id="half-minus-btn">&#8722;</button>
+        <span class="half-duration-value" id="half-minutes-display">25 min</span>
+        <button class="btn-stepper" id="half-plus-btn">+</button>
+      </div>
+    </div>
+    <div class="half-duration-row">
+      <span class="half-duration-label">Minimum Play Time</span>
+      <div class="half-duration-controls">
+        <button class="btn-stepper" id="min-play-minus-btn">&#8722;</button>
+        <span class="half-duration-value" id="min-play-display">off</span>
+        <button class="btn-stepper" id="min-play-plus-btn">+</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-gray" id="gameday-settings-close-btn">Done</button>
     </div>
   </div>
 </div>

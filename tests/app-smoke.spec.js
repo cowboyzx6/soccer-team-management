@@ -104,6 +104,61 @@ test('attendance can reach lineup screen', async ({ page }) => {
   await expect(page.locator('#lineup-header-title')).toContainText('Oyster Blueberries');
 });
 
+test('Game Day Settings in the menu holds the half length and minimum play controls', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+  });
+  await page.reload();
+
+  await expect(page.locator('#half-plus-btn')).toBeHidden();
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#gameday-settings-btn').click();
+  await expect(page.locator('#gameday-settings-modal')).not.toHaveClass(/hidden/);
+
+  await page.locator('#half-plus-btn').click();
+  await page.locator('#min-play-plus-btn').click();
+  await expect(page.locator('#half-minutes-display')).toHaveText('26 min');
+  await expect(page.locator('#min-play-display')).toHaveText('5 min');
+
+  await page.locator('#gameday-settings-close-btn').click();
+  await expect(page.locator('#gameday-settings-modal')).toHaveClass(/hidden/);
+});
+
+test('with both halves planned, Start Game skips the goalie picker and opens the planned lineup', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
+  });
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await expect(page.locator('#start-btn')).toContainText('Set Starting Lineup');
+
+  await page.evaluate(async () => {
+    const [{ state }, { updatePlanAheadStatus }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/roster.js'),
+    ]);
+    state.gamePlan = {
+      gameNumber: state.gameHistory.length + 1,
+      playerIds: [1, 2],
+      half1: { GK: 1, CF: 2 },
+      half2: { GK: 2, CF: 1 },
+    };
+    updatePlanAheadStatus();
+  });
+  await expect(page.locator('#start-btn')).toContainText('Start Game');
+
+  await page.locator('#start-btn').click();
+  await expect(page.locator('#gk-picker-modal')).toHaveClass(/hidden/);
+  await expect(page.locator('#lineup-screen')).toHaveClass(/active/);
+  const goalies = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return [state.goalie1Id, state.goalie2Id];
+  });
+  expect(goalies).toEqual([1, 2]);
+});
+
 test('lineup drag uses an expanded drop zone around position slots', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([

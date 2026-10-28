@@ -116,7 +116,7 @@ import {
   pickForPlanSub,
   removePlanSubRound
 } from './plan-subs.js';
-import { applyTheme, closeModal, toggleTheme } from './utils.js';
+import { applyTheme, closeModal, openModal, toggleTheme } from './utils.js';
 
 function onTeamNameInput() {
   const val = document.getElementById('team-name-input').value.trim();
@@ -197,6 +197,11 @@ document.getElementById('review-season-btn').addEventListener('click', () => {
   showSeasonSummary();
   closeOverflowMenu();
 });
+document.getElementById('gameday-settings-btn').addEventListener('click', () => {
+  openModal('gameday-settings-modal');
+  closeOverflowMenu();
+});
+document.getElementById('gameday-settings-close-btn').addEventListener('click', () => closeModal('gameday-settings-modal'));
 document.getElementById('team-settings-btn').addEventListener('click', () => {
   goToTeamSetup();
   closeOverflowMenu();

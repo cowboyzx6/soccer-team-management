@@ -69,6 +69,19 @@ export function goToLineup() {
 
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
+
+  // A full plan already names both goalies, so skip the picker and go straight
+  // to the pre-filled lineup for a last look before starting.
+  const plan = state.gamePlan;
+  const plannedGk1 = plan && plan.half1 && plan.half2 ? plan.half1.GK : null;
+  if (plannedGk1 && state.lineupDraft.some(p => p.id === plannedGk1)) {
+    const plannedGk2 = plan.half2.GK;
+    state.goalie1Id = plannedGk1;
+    state.goalie2Id = state.lineupDraft.some(p => p.id === plannedGk2) ? plannedGk2 : plannedGk1;
+    showScreen('lineup-screen');
+    renderLineup();
+    return;
+  }
   showGkPicker();
 }
 

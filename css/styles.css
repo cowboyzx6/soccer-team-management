@@ -2068,19 +2068,9 @@
     .sub-tray-remove:active { background: rgba(255,255,255,0.12); }
     .sub-tray .btn-sub-now { margin: 0; min-height: 44px; }
 
-    .plan-subs-round-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      margin-bottom: 6px;
-      font-size: 0.82rem;
-    }
-    .plan-subs-projection-table { width: 100%; font-size: 0.82rem; border-collapse: collapse; }
-    .plan-subs-projection-table th, .plan-subs-projection-table td { padding: 4px 6px; text-align: left; }
+    .lineup-projection-table { width: 100%; font-size: 0.82rem; border-collapse: collapse; }
+    .lineup-projection-table th, .lineup-projection-table td { padding: 4px 6px; text-align: left; }
+    .lineup-projection-table td.zero-time { color: var(--btn-rm-color); font-weight: 700; }
 
     .btn-undo-sub {
       width: 100%;

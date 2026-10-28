@@ -25,7 +25,7 @@ The app is a **vanilla HTML/CSS/JavaScript app** with browser-native ES modules.
 - Start with any number of assigned field players, including short-handed games with fewer than 9 players.
 - Pick separate first-half and second-half goalkeepers manually, by spinner, or by explicitly reusing the first-half goalkeeper.
 - The goalie spinner avoids players who have already logged GK time in saved season history when possible.
-- **Plan Both Halves in Advance** — optionally build the Half 1 and Half 2 lineups ahead of the live game, on the same field diagram. The saved plan pre-fills the starting lineup when you set it live, and offers a one-tap "Use Planned Half 2 Lineup" option at halftime; skipping this entirely leaves the normal live/manual flow unchanged. The plan is saved locally and survives closing the browser until the game is played or the plan is cleared.
+- **Plan Lineup in Advance** — optionally plan the whole game ahead of kickoff in four "quarters" on the same field diagram: Q1 (start of Half 1), Q2 (mid Half 1), Q3 (start of Half 2) and Q4 (mid Half 2). Q2 and Q4 open pre-filled from the quarter before, so you only move the players who change. Q1 pre-fills the starting lineup, Q3 is offered as a one-tap "Use Planned Half 2 Lineup" at halftime, and the Q2/Q4 changes are loaded into the sub tray by the in-game Planned Subs button when you choose; nothing is substituted automatically. Skipping this leaves the normal live/manual flow unchanged. The plan is saved locally until the game is played or the plan is cleared.
 
 ### Live game tracking
 
@@ -113,7 +113,7 @@ The main storage keys are:
 - `playerPhotos` — resized player photos as base64 image data.
 - `soccerGameHistory` — completed game records.
 - `soccerActiveGame` — interrupted in-progress game state.
-- `soccerGamePlan` — a saved "Plan Both Halves in Advance" lineup, kept independently so it survives closing the browser before the game starts.
+- `soccerGamePlan` — a saved "Plan Lineup in Advance" plan, kept independently so it survives closing the browser before the game starts.
 - `soccerQueuedPlans` — plans for games after the next one (e.g. game 2 of a double header). Once the earlier game ends, the next queued plan becomes `soccerGamePlan`.
 - `theme` — light/dark theme preference.
 

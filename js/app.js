@@ -108,14 +108,6 @@ import {
   undoLastSub,
   updateGoalBtn
 } from './game.js';
-import {
-  advancePlanSubs,
-  commitPlanSubRound,
-  goBackFromPlanSubs,
-  goToPlanSubs,
-  pickForPlanSub,
-  removePlanSubRound
-} from './plan-subs.js';
 import { applyTheme, closeModal, openModal, toggleTheme } from './utils.js';
 
 function onTeamNameInput() {
@@ -169,7 +161,6 @@ document.addEventListener('game-review:loaded', e => {
 
 document.getElementById('lineup-field-diagram').insertAdjacentHTML('afterbegin', FIELD_SVG);
 document.getElementById('game-field-diagram').insertAdjacentHTML('afterbegin', FIELD_SVG);
-document.getElementById('plan-subs-field-diagram').insertAdjacentHTML('afterbegin', FIELD_SVG);
 applyTheme(localStorage.getItem('theme') || 'dark');
 initPersistenceListeners();
 initRosterListeners();
@@ -225,19 +216,7 @@ document.getElementById('plan-ahead-btn').addEventListener('click', goToPlanAhea
 document.getElementById('plan-next-btn').addEventListener('click', () => switchPlanOffset(state.planOffset + 1));
 document.getElementById('plan-back-btn').addEventListener('click', () => switchPlanOffset(state.planOffset - 1));
 document.getElementById('plan-ahead-clear-btn').addEventListener('click', () => {
-  if (confirm('Clear the planned lineups for both halves?')) clearGamePlan();
-});
-document.getElementById('plan-subs-btn').addEventListener('click', goToPlanSubs);
-document.getElementById('plan-subs-back-btn').addEventListener('click', goBackFromPlanSubs);
-document.getElementById('plan-subs-next-btn').addEventListener('click', advancePlanSubs);
-document.getElementById('plan-subs-add-round-btn').addEventListener('click', commitPlanSubRound);
-document.getElementById('plan-subs-bench-list').addEventListener('click', e => {
-  const el = e.target.closest('.lineup-player');
-  if (el) pickForPlanSub('bench', Number(el.dataset.playerId));
-});
-document.getElementById('plan-subs-rounds-list').addEventListener('click', e => {
-  const btn = e.target.closest('.sub-tray-remove');
-  if (btn) removePlanSubRound(Number(btn.dataset.roundIndex));
+  if (confirm('Clear the planned lineup?')) clearGamePlan();
 });
 document.getElementById('team-setup-back-btn').addEventListener('click', goBackFromTeamSetup);
 document.getElementById('import-csv-btn').addEventListener('click', importLeagueCsv);

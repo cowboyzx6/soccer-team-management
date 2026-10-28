@@ -446,21 +446,19 @@ export function updatePlanAheadStatus() {
 
   if (hasFull) {
     planBtn.textContent = '📋 Edit Planned Lineups';
-    if (statusText) statusText.textContent = '✅ Lineups planned for both halves';
+    if (statusText) statusText.textContent = '✅ Lineup planned for all four quarters';
     status.style.display = 'flex';
   } else if (hasPartial) {
     planBtn.textContent = '📋 Finish Planning Lineups';
-    if (statusText) statusText.textContent = '⚠️ Half 1 saved — Half 2 still needs a plan';
+    if (statusText) statusText.textContent = '⚠️ Plan unfinished — the remaining quarters still need a lineup';
     status.style.display = 'flex';
   } else {
-    planBtn.textContent = '📋 Plan Both Halves in Advance';
+    planBtn.textContent = '📋 Plan Lineup in Advance';
     status.style.display = 'none';
   }
 
   document.getElementById('start-btn').textContent = hasFull ? 'Start Game →' : 'Set Starting Lineup →';
 
-  const subsBtn = document.getElementById('plan-subs-btn');
-  if (subsBtn) subsBtn.disabled = !hasFull;
 }
 
 export function checkedPlayers() {

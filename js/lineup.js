@@ -1,8 +1,18 @@
 import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { avatarHtml, avatarParts, checkedPlayers, renderGameDayCheckboxes } from './roster.js';
-import { closeModal, escHtml, openModal, showScreen } from './utils.js';
+import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
 import { saveGamePlan } from './persistence.js';
-import { ensureActivePlan, getActivePlan, setActivePlan, targetGameNumber } from './plans.js';
+import {
+  deriveSubRound,
+  ensureActivePlan,
+  effectiveLineupAt,
+  getActivePlan,
+  projectedSecondsByHalf,
+  QUARTER_LABELS,
+  quarterLineup,
+  setActivePlan,
+  targetGameNumber
+} from './plans.js';
 
 const WHEEL_ITEM_H = 60;
 const WHEEL_REPS = 50;
@@ -44,7 +54,7 @@ export function goToLineup() {
   state.activeGoalieId = null;
   state.goaliePickerSkipped = false;
   state.isPrePlanning = false;
-  state.prePlanHalf = null;
+  state.prePlanQuarter = null;
 
   document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Starting Lineup`;
   document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
@@ -86,8 +96,27 @@ export function goToLineup() {
 }
 
 // ------------------------------------------------------------
-//  PLAN AHEAD (pre-plan Half 1 + Half 2 lineups before the game)
+//  PLAN AHEAD (pre-plan the lineup for four "quarters" before the game)
 // ------------------------------------------------------------
+// Q1/Q3 are the starting lineups of each half; Q2/Q4 are the lineups after the
+// mid-half sub. See quarterLineup() in plans.js for how they are stored.
+function fillDraftFromMap(map) {
+  state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
+  Object.entries(map || {}).forEach(([pos, playerId]) => {
+    const p = state.lineupDraft.find(dp => dp.id === playerId);
+    if (p) { p.position = pos; p.onField = true; }
+  });
+}
+
+function showPrePlanQuarter() {
+  const q = state.prePlanQuarter;
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan ${QUARTER_LABELS[q]}`;
+  document.getElementById('lineup-back-btn').textContent = q === 1 ? '\u2190 Back' : `\u2190 Back to Q${q - 1}`;
+  renderLineup();
+}
+
 export function goToPlanAhead() {
   const present = checkedPlayers();
   if (present.length < 1) return;
@@ -98,7 +127,7 @@ export function goToPlanAhead() {
 
   state.savedChecked = new Set(present.map(p => p.id));
   state.isPrePlanning = true;
-  state.prePlanHalf = 1;
+  state.prePlanQuarter = 1;
 
   const existingPlan = getActivePlan();
   if (existingPlan && existingPlan.gameNumber && existingPlan.gameNumber !== targetGameNumber()) {
@@ -112,21 +141,10 @@ export function goToPlanAhead() {
     position: null,
   }));
 
-  // Editing an existing plan for the same roster pre-fills Half 1 from it.
-  const activePlan = getActivePlan();
-  if (activePlan && activePlan.half1) {
-    Object.entries(activePlan.half1).forEach(([pos, playerId]) => {
-      const p = state.lineupDraft.find(dp => dp.id === playerId);
-      if (p) { p.position = pos; p.onField = true; }
-    });
-  }
-
-  state.selectedLineupSlot = null;
-  state.selectedLineupPlayer = null;
-  document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 1 Lineup`;
-  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
+  // Editing an existing plan for the same roster pre-fills Q1 from it.
+  fillDraftFromMap(quarterLineup(getActivePlan(), 1));
   showScreen('lineup-screen');
-  renderLineup();
+  showPrePlanQuarter();
 }
 
 function buildPositionMapFromDraft() {
@@ -135,9 +153,9 @@ function buildPositionMapFromDraft() {
   return map;
 }
 
-// Called by the lineup screen's main button while pre-planning. Saves the
-// current half's positions and either advances to Half 2 or finishes the plan.
-export function advancePrePlan() {
+// Stores the draft as quarter q of the plan. Q2/Q4 are saved as the sub round
+// from the preceding quarter, replacing any earlier rounds for that half.
+function saveQuarterDraft(q) {
   const posMap = buildPositionMapFromDraft();
   const plan = ensureActivePlan();
   plan.gameNumber = targetGameNumber();
@@ -145,32 +163,41 @@ export function advancePrePlan() {
   plan.opponent = state.opponentName;
   plan.playerIds = [...state.savedChecked];
 
-  if (state.prePlanHalf === 1) {
-    plan.half1 = posMap;
-
-    state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
-    // Editing an existing plan pre-fills Half 2 from what was saved before.
-    if (plan.half2) {
-      Object.entries(plan.half2).forEach(([pos, playerId]) => {
-        const p = state.lineupDraft.find(dp => dp.id === playerId);
-        if (p) { p.position = pos; p.onField = true; }
-      });
-    }
-
-    state.prePlanHalf = 2;
-    state.selectedLineupSlot = null;
-    state.selectedLineupPlayer = null;
-    document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 2 Lineup`;
-    document.getElementById('lineup-back-btn').textContent = '\u2190 Back to Half 1';
-    saveGamePlan();
-    renderLineup();
+  const half = q <= 2 ? 1 : 2;
+  if (q % 2) {
+    plan[`half${half}`] = posMap;
   } else {
-    plan.half2 = posMap;
+    const round = deriveSubRound(plan[`half${half}`], posMap);
+    if (round.length) plan[`half${half}Subs`] = [round];
+    else delete plan[`half${half}Subs`];
+  }
+}
+
+// Opens quarter q in the draft: its saved lineup if there is one, otherwise the
+// previous quarter's lineup for a mid-half quarter (so only the changes need
+// moving) or an empty field for the start of a half.
+function loadQuarterDraft(q) {
+  const plan = getActivePlan();
+  const saved = quarterLineup(plan, q);
+  fillDraftFromMap(q % 2 === 0 ? (saved || quarterLineup(plan, q - 1)) : saved);
+}
+
+// Called by the lineup screen's main button while pre-planning. Saves the
+// current quarter and either advances to the next one or finishes the plan.
+export function advancePrePlan() {
+  const q = state.prePlanQuarter;
+  saveQuarterDraft(q);
+  saveGamePlan();
+
+  if (q < 4) {
+    state.prePlanQuarter = q + 1;
+    loadQuarterDraft(q + 1);
+    showPrePlanQuarter();
+  } else {
     state.isPrePlanning = false;
-    state.prePlanHalf = null;
+    state.prePlanQuarter = null;
     state.selectedLineupSlot = null;
     state.selectedLineupPlayer = null;
-    saveGamePlan();
     showScreen('setup-screen');
     renderGameDayCheckboxes(true);
     document.dispatchEvent(new CustomEvent('gameplan:saved'));
@@ -317,47 +344,87 @@ export function goBackFromLineup() {
     finishHalftimeLineup(false);
     return;
   }
-  if (state.isPrePlanning && state.prePlanHalf === 2) {
-    goBackToPrePlanHalf1();
+  if (state.isPrePlanning && state.prePlanQuarter > 1) {
+    goBackToPrePlanQuarter();
     return;
   }
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
   state.isPrePlanning = false;
-  state.prePlanHalf = null;
+  state.prePlanQuarter = null;
   showScreen('setup-screen');
   renderGameDayCheckboxes(true);
 }
 
-// While pre-planning, steps back from the Half 2 draft to the Half 1 draft so
-// the coach can adjust it. The in-progress Half 2 draft is saved to the game
-// plan first so nothing is lost, and advancePrePlan() restores it again if
-// the coach moves forward past Half 1 a second time.
-export function goBackToPrePlanHalf1() {
-  const plan = ensureActivePlan();
-  plan.half2 = buildPositionMapFromDraft();
+// While pre-planning, steps back one quarter. The current draft is saved to
+// the plan first so nothing is lost; the previous quarter then reopens from
+// its saved lineup.
+export function goBackToPrePlanQuarter() {
+  const q = state.prePlanQuarter;
+  saveQuarterDraft(q);
   saveGamePlan();
-
-  state.lineupDraft.forEach(p => { p.position = null; p.onField = false; });
-  if (plan.half1) {
-    Object.entries(plan.half1).forEach(([pos, playerId]) => {
-      const p = state.lineupDraft.find(dp => dp.id === playerId);
-      if (p) { p.position = pos; p.onField = true; }
-    });
-  }
-
-  state.prePlanHalf = 1;
-  state.selectedLineupSlot = null;
-  state.selectedLineupPlayer = null;
-  document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan Half 1 Lineup`;
-  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
-  renderLineup();
+  state.prePlanQuarter = q - 1;
+  loadQuarterDraft(q - 1);
+  showPrePlanQuarter();
 }
 
 export function renderLineup() {
   renderLineupField();
   renderLineupPlayers();
   updateLineupLaunchBtn();
+  renderProjection();
+}
+
+// The four planned quarters as { half, lineup }, using the on-screen draft for
+// the quarter being edited and the saved plan for the rest. A mid-half quarter
+// that has no saved sub round assumes no change from the start of its half; a
+// half with no start lineup yet contributes nothing.
+function plannedQuarters() {
+  const plan = getActivePlan();
+  const current = state.prePlanQuarter;
+  const draft = buildPositionMapFromDraft();
+  const quarters = [];
+  [1, 2].forEach(half => {
+    const startQ = half * 2 - 1;
+    const base = current === startQ ? draft : plan && plan[`half${half}`];
+    if (!base) return;
+    quarters.push({ half, lineup: base });
+    quarters.push({
+      half,
+      lineup: current === startQ + 1 ? draft : effectiveLineupAt(base, (plan && plan[`half${half}Subs`]) || [], 1),
+    });
+  });
+  return quarters;
+}
+
+// Shows each player's projected time on the field across the planned quarters,
+// updating as the draft changes, so playing time can be balanced while planning.
+function renderProjection() {
+  const wrap = document.getElementById('lineup-projection');
+  if (!state.isPrePlanning) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+
+  const quarterSeconds = state.halfMinutes * 60 / 2;
+  const totals = projectedSecondsByHalf(plannedQuarters(), quarterSeconds, [...state.savedChecked]);
+  const names = new Map(state.lineupDraft.map(p => [p.id, p.name]));
+  const rows = Object.entries(totals)
+    .map(([id, t]) => ({ id: Number(id), name: names.get(Number(id)) || '?', ...t, total: t.half1 + t.half2 }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const maxTotal = Math.max(1, ...rows.map(r => r.total));
+  document.getElementById('lineup-projection-body').innerHTML = rows.map(r => `
+    <tr data-player-id="${r.id}">
+      <td>${escHtml(r.name)}</td>
+      <td>${fmt(Math.round(r.half1))}</td>
+      <td>${fmt(Math.round(r.half2))}</td>
+      <td class="total-col${r.total ? '' : ' zero-time'}">
+        ${fmt(Math.round(r.total))}
+        <div class="time-bar"><div class="time-bar-fill" style="width:${Math.round((r.total / maxTotal) * 100)}%"></div></div>
+      </td>
+    </tr>
+  `).join('');
 }
 
 export function handleLineupPointerDown(e) {
@@ -521,7 +588,7 @@ export function renderLineupField() {
 function otherHalfAssignment(playerId) {
   const plan = getActivePlan();
   if (!state.isPrePlanning || !plan) return null;
-  const otherHalf = state.prePlanHalf === 1 ? 2 : 1;
+  const otherHalf = state.prePlanQuarter <= 2 ? 2 : 1;
   const map = plan[`half${otherHalf}`];
   if (!map) return null;
   const entry = Object.entries(map).find(([, id]) => id === playerId);
@@ -624,7 +691,7 @@ export function updateLineupLaunchBtn() {
   } else if (state.isHalftimeEdit) {
     btn.textContent = 'Start 2nd Half →';
   } else if (state.isPrePlanning) {
-    btn.textContent = state.prePlanHalf === 1 ? 'Save Half 1 \u2192 Plan Half 2' : 'Save Plan \u2713';
+    btn.textContent = state.prePlanQuarter < 4 ? `Save Q${state.prePlanQuarter} \u2192 Plan Q${state.prePlanQuarter + 1}` : 'Save Plan \u2713';
   } else {
     btn.textContent = 'Start Game \u2192';
   }

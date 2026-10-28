@@ -71,15 +71,12 @@
       </button>
 
       <button class="btn btn-blue btn-full" id="plan-ahead-btn" disabled style="margin-top:8px;">
-        &#128203; Plan Both Halves in Advance
+        &#128203; Plan Lineup in Advance
       </button>
       <div id="plan-ahead-status" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:0.78rem;color:var(--text-muted);">
-        <span id="plan-ahead-status-text">&#9989; Lineups planned for both halves</span>
+        <span id="plan-ahead-status-text">&#9989; Lineup planned for all four quarters</span>
         <button class="btn-sm btn-gray" id="plan-ahead-clear-btn" style="padding:4px 10px;font-size:0.72rem;">Clear Plan</button>
       </div>
-      <button class="btn btn-purple btn-full" id="plan-subs-btn" disabled style="margin-top:8px;">
-        &#128201; Plan Subs
-      </button>
       <button class="btn btn-gray btn-full" id="plan-next-btn" style="display:none;margin-top:8px;">&#9654; Plan next game</button>
       <button class="btn btn-gray btn-full" id="plan-back-btn" style="display:none;margin-top:8px;">&#9664; Back</button>
     </div>
@@ -223,6 +220,13 @@
       <div class="field-diagram" id="lineup-field-diagram">
         <div class="field-positions" id="lineup-field-positions"></div>
       </div>
+      <div id="lineup-projection" style="display:none;">
+        <div class="lineup-panel-title" style="margin-top:12px;">Projected Minutes</div>
+        <table class="lineup-projection-table">
+          <thead><tr><th>Player</th><th>Half 1</th><th>Half 2</th><th>Total</th></tr></thead>
+          <tbody id="lineup-projection-body"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Right: unassigned players + actions -->
@@ -233,47 +237,6 @@
       <div class="lineup-panel-actions">
         <button class="btn btn-green btn-full" id="launch-btn" disabled>
           Start Game &#8594;
-        </button>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<!--  PLAN SUBS SCREEN                                            -->
-<!-- ============================================================ -->
-<div id="plan-subs-screen" class="screen">
-
-  <div class="lineup-header">
-    <div class="lineup-header-title" id="plan-subs-header-title">My Team &mdash; Plan Half 1 Subs</div>
-    <button class="btn-sm btn-gray" id="plan-subs-back-btn">&#8592; Back</button>
-  </div>
-
-  <div class="lineup-layout">
-
-    <div class="lineup-field-panel">
-      <div class="lineup-panel-title">Field &mdash; tap a bench player, then a field spot, to plan a swap</div>
-      <div class="field-diagram" id="plan-subs-field-diagram">
-        <div class="field-positions" id="plan-subs-field-positions"></div>
-      </div>
-      <div class="lineup-panel-title" style="margin-top:12px;">Projected Minutes</div>
-      <table class="plan-subs-projection-table">
-        <thead><tr><th>Player</th><th>Half 1</th><th>Half 2</th><th>Combined</th></tr></thead>
-        <tbody id="plan-subs-projection-body"></tbody>
-      </table>
-    </div>
-
-    <div class="lineup-players-panel">
-      <div class="lineup-panel-title">Bench</div>
-      <div class="lineup-hint" id="plan-subs-hint">Tap a bench player and a field spot to pair them for this round.</div>
-      <div class="lineup-unassigned-list" id="plan-subs-bench-list"></div>
-      <div class="lineup-panel-title" style="margin-top:12px;">Planned Rounds</div>
-      <div id="plan-subs-rounds-list"></div>
-      <div class="lineup-panel-actions">
-        <button class="btn btn-gray btn-full" id="plan-subs-add-round-btn">Add Round</button>
-        <button class="btn btn-green btn-full" id="plan-subs-next-btn" style="margin-top:8px;">
-          Next: Half 2 Subs &#8594;
         </button>
       </div>
     </div>

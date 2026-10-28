@@ -16,6 +16,18 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+// Walks the four planning quarters with one player in goal: Q1 and Q3 start from
+// an empty field, Q2 and Q4 open pre-filled from the quarter before them.
+async function planFourQuarters(page, playerId) {
+  for (const quarter of [1, 2, 3, 4]) {
+    if (quarter % 2) {
+      await page.locator('#lineup-field-positions [data-position="GK"]').click();
+      await page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${playerId}"]`).click();
+    }
+    await page.locator('#launch-btn').click();
+  }
+}
+
 test('team setup opens and roster can be added', async ({ page }) => {
   await page.getByRole('button', { name: /Set Up My Team/i }).click();
 
@@ -159,6 +171,121 @@ test('with both halves planned, Start Game skips the goalie picker and opens the
   expect(goalies).toEqual([1, 2]);
 });
 
+test('planning four quarters saves mid-half lineups as the planned sub round', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
+  });
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await expect(page.locator('#plan-ahead-btn')).toContainText('Plan Lineup in Advance');
+  await page.locator('#plan-ahead-btn').click();
+
+  const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
+  const bench = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
+  const next = page.locator('#launch-btn');
+
+  // Q1: Avery in goal, Blake at CF.
+  await expect(page.locator('#lineup-header-title')).toContainText('Q1');
+  await slot('GK').click(); await bench(1).click();
+  await slot('CF').click(); await bench(2).click();
+  await next.click();
+
+  // Q2 opens pre-filled from Q1; swap the two players.
+  await expect(page.locator('#lineup-header-title')).toContainText('Q2');
+  await expect(slot('GK')).toContainText('Avery');
+  await expect(slot('CF')).toContainText('Blake');
+  await slot('GK').click(); await slot('CF').click();
+  await slot('GK').click(); await bench(2).click();
+  await slot('CF').click(); await bench(1).click();
+  await expect(slot('GK')).toContainText('Blake');
+  await next.click();
+
+  // Q3 starts empty; assign Blake in goal. Q4 pre-fills from Q3 and is left as is.
+  await expect(page.locator('#lineup-header-title')).toContainText('Q3');
+  await expect(slot('GK')).not.toContainText('Avery');
+  await slot('GK').click(); await bench(2).click();
+  await next.click();
+  await expect(page.locator('#lineup-header-title')).toContainText('Q4');
+  await expect(slot('GK')).toContainText('Blake');
+  await next.click();
+
+  await expect(page.locator('#setup-screen')).toHaveClass(/active/);
+  const plan = await page.evaluate(async () => (await import('/js/state.js')).state.gamePlan);
+  expect(plan.half1).toEqual({ GK: 1, CF: 2 });
+  expect(plan.half2).toEqual({ GK: 2 });
+  // A position swap between players already on the field is not a sub round.
+  expect(plan.half1Subs).toBeUndefined();
+  expect(plan.half2Subs).toBeUndefined();
+});
+
+test('going back through the planning quarters keeps each quarter and only changed players become subs', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
+  });
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await page.locator('#plan-ahead-btn').click();
+
+  const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
+  const bench = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
+
+  // Q1: Avery in goal only. Q2: Blake replaces Avery in goal (a sub round).
+  await slot('GK').click(); await bench(1).click();
+  await page.locator('#launch-btn').click();
+  await slot('GK').click();
+  await slot('GK').click(); await bench(2).click();
+  await page.locator('#launch-btn').click();
+  await expect(page.locator('#lineup-header-title')).toContainText('Q3');
+
+  await page.locator('#lineup-back-btn').click();
+  await expect(page.locator('#lineup-header-title')).toContainText('Q2');
+  await expect(slot('GK')).toContainText('Blake');
+  await page.locator('#lineup-back-btn').click();
+  await expect(page.locator('#lineup-header-title')).toContainText('Q1');
+  await expect(slot('GK')).toContainText('Avery');
+
+  const plan = await page.evaluate(async () => (await import('/js/state.js')).state.gamePlan);
+  expect(plan.half1).toEqual({ GK: 1 });
+  expect(plan.half1Subs).toEqual([[{ inId: 2, pos: 'GK' }]]);
+});
+
+test('planning shows projected minutes per player that update as quarters change', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 24 }));
+  });
+  await page.reload();
+  await page.locator('#opponent-input').fill('Blue Team');
+  await page.locator('#tile-1').click();
+  await page.locator('#tile-2').click();
+  await expect(page.locator('#lineup-projection')).toBeHidden();
+  await page.locator('#plan-ahead-btn').click();
+
+  const row = id => page.locator(`#lineup-projection-body tr[data-player-id="${id}"]`);
+  const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
+  const bench = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
+
+  // Everyone is listed from the start, with zero until placed. Quarters are 12 minutes here.
+  await expect(row(1)).toContainText('00:00');
+  await expect(row(2)).toContainText('00:00');
+
+  // Avery in goal in Q1; with no sub planned, that holds for Q2 as well.
+  await slot('GK').click(); await bench(1).click();
+  await expect(row(1).locator('td').nth(1)).toHaveText('24:00');
+  await expect(row(2).locator('td').nth(1)).toHaveText('00:00');
+
+  // Q2: Blake replaces Avery, so each plays half of Half 1.
+  await page.locator('#launch-btn').click();
+  await slot('GK').click();
+  await slot('GK').click(); await bench(2).click();
+  await expect(row(1).locator('td').nth(1)).toHaveText('12:00');
+  await expect(row(2).locator('td').nth(1)).toHaveText('12:00');
+});
+
 test('lineup drag uses an expanded drop zone around position slots', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([
@@ -298,7 +425,7 @@ test('backup restores a lineup plan only for the next unplayed game', async ({ p
     half1: { GK: 1, CF: 2 },
     half2: { GK: 2, CF: 1 },
   });
-  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineups planned for both halves');
+  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineup planned for all four quarters');
   await expect(page.locator('#opponent-input')).toHaveValue('Blue Team');
   await expect(page.locator('#game-date-input')).toHaveValue('2026-09-26');
   await expect(page.locator('#tile-1')).toHaveClass(/selected/);
@@ -449,11 +576,7 @@ test('one-player planning backup includes attendance opponent and date', async (
   await page.locator('#tile-1').click();
   await page.locator('#plan-ahead-btn').click();
 
-  for (let half = 1; half <= 2; half++) {
-    await page.locator('#lineup-field-positions [data-position="GK"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-    await page.locator('#launch-btn').click();
-  }
+  await planFourQuarters(page, 1);
 
   await page.locator('#overflow-menu-btn').click();
   await page.locator('#team-settings-btn').click();
@@ -526,171 +649,6 @@ test('team backup serializes planned sub rounds for the pending plan', async ({ 
   const profile = await page.evaluate(async () => (await import('/js/persistence.js')).buildProfile(false));
   expect(profile.gamePlan.half1Subs).toEqual([[{ inId: 2, pos: 'GK' }]]);
   expect(profile.gamePlan.half2Subs).toBeUndefined();
-});
-
-test('Plan Subs is disabled until both halves have a lineup, then opens the screen', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('soccerRoster', JSON.stringify([
-      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
-    ]));
-  });
-  await page.reload();
-  await page.locator('#game-date-input').fill('2026-09-26');
-  await page.locator('#opponent-input').fill('Blue Team');
-  await page.locator('#tile-1').click();
-  await page.locator('#tile-2').click();
-
-  await expect(page.locator('#plan-subs-btn')).toBeDisabled();
-
-  await page.locator('#plan-ahead-btn').click();
-  for (let half = 1; half <= 2; half++) {
-    await page.locator('#lineup-field-positions [data-position="GK"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-    await page.locator('#launch-btn').click();
-  }
-
-  await expect(page.locator('#plan-subs-btn')).toBeEnabled();
-  await page.locator('#plan-subs-btn').click();
-  await expect(page.locator('#plan-subs-screen')).toHaveClass(/active/);
-  await expect(page.locator('#plan-subs-field-positions [data-position="GK"]')).toContainText('Avery');
-});
-
-test('planning one sub round in Half 1 splits projected minutes evenly', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('soccerRoster', JSON.stringify([
-      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
-    ]));
-    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 20 }));
-  });
-  await page.reload();
-  await page.locator('#game-date-input').fill('2026-09-26');
-  await page.locator('#opponent-input').fill('Blue Team');
-  await page.locator('#tile-1').click();
-  await page.locator('#tile-2').click();
-  await page.locator('#plan-ahead-btn').click();
-  await page.locator('#lineup-field-positions [data-position="GK"]').click();
-  await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-  await page.locator('#launch-btn').click();
-  await page.locator('#lineup-field-positions [data-position="GK"]').click();
-  await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-  await page.locator('#launch-btn').click();
-
-  await page.locator('#plan-subs-btn').click();
-  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="2"]').click();
-  await page.locator('#plan-subs-field-positions [data-position="GK"]').click();
-  await page.locator('#plan-subs-add-round-btn').click();
-
-  const rows = page.locator('#plan-subs-projection-body tr');
-  await expect(rows).toHaveCount(2);
-  await expect(rows.filter({ hasText: 'Avery' })).toContainText('10:00');
-  await expect(rows.filter({ hasText: 'Blake' })).toContainText('10:00');
-});
-
-test('Plan Subs next-button label resets after a full run and after going back to Half 1', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('soccerRoster', JSON.stringify([
-      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' },
-    ]));
-  });
-  await page.reload();
-  await page.locator('#game-date-input').fill('2026-09-26');
-  await page.locator('#opponent-input').fill('Blue Team');
-  await page.locator('#tile-1').click();
-  await page.locator('#tile-2').click();
-  await page.locator('#plan-ahead-btn').click();
-  for (let half = 1; half <= 2; half++) {
-    await page.locator('#lineup-field-positions [data-position="GK"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-    await page.locator('#launch-btn').click();
-  }
-
-  await page.locator('#plan-subs-btn').click();
-  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
-  await page.locator('#plan-subs-next-btn').click();
-  await expect(page.locator('#plan-subs-next-btn')).toHaveText('Finish');
-  await page.locator('#plan-subs-back-btn').click();
-  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
-  await page.locator('#plan-subs-next-btn').click(); // half1 -> half2 again
-  await expect(page.locator('#plan-subs-next-btn')).toHaveText('Finish');
-  await page.locator('#plan-subs-next-btn').click(); // half2 -> finish, back to setup-screen
-
-  // Re-open Plan Subs after a completed run — label must not still say "Finish".
-  await page.locator('#plan-subs-btn').click();
-  await expect(page.locator('#plan-subs-next-btn')).toHaveText(/Next: Half 2 Subs/);
-});
-
-test('removing an earlier planned-sub round does not double-book a player in the projection', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('soccerRoster', JSON.stringify([
-      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' },
-    ]));
-    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 30 }));
-  });
-  await page.reload();
-  await page.locator('#game-date-input').fill('2026-09-26');
-  await page.locator('#opponent-input').fill('Blue Team');
-  await page.locator('#tile-1').click();
-  await page.locator('#tile-2').click();
-  await page.locator('#tile-3').click();
-  await page.locator('#plan-ahead-btn').click();
-  for (let half = 1; half <= 2; half++) {
-    await page.locator('#lineup-field-positions [data-position="GK"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-    await page.locator('#lineup-field-positions [data-position="CF"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="2"]').click();
-    await page.locator('#launch-btn').click();
-  }
-
-  await page.locator('#plan-subs-btn').click();
-  // Round 1: Casey in for Avery at GK.
-  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="3"]').click();
-  await page.locator('#plan-subs-field-positions [data-position="GK"]').click();
-  await page.locator('#plan-subs-add-round-btn').click();
-  // Round 2: Avery (now benched after round 1) in for Blake at CF.
-  await page.locator('#plan-subs-bench-list .lineup-player[data-player-id="1"]').click();
-  await page.locator('#plan-subs-field-positions [data-position="CF"]').click();
-  await page.locator('#plan-subs-add-round-btn').click();
-
-  // Remove round 1 — round 2 ("Avery in for Blake at CF") now references a
-  // player (Avery) who, with round 1 gone, is still the GK starter. Applying
-  // round 2 unconditionally would put Avery at both GK and CF simultaneously.
-  await page.locator('#plan-subs-rounds-list .sub-tray-remove[data-round-index="0"]').click();
-
-  const totals = await page.evaluate(async () => {
-    const { computeProjectedSubMinutes } = await import('/js/plan-subs.js');
-    return computeProjectedSubMinutes();
-  });
-  const halfSeconds = 30 * 60;
-  // No player can legitimately be credited more than a half's own length —
-  // double-booking Avery at two positions in the same stretch would push her
-  // half1 total above this.
-  Object.values(totals).forEach(t => expect(t.half1).toBeLessThanOrEqual(halfSeconds));
-  // Blake must not be silently dropped from the projection by the stale pair.
-  expect(totals[2].half1).toBeGreaterThan(0);
-});
-
-test('Plan Subs bench list only shows players checked in for this game', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('soccerRoster', JSON.stringify([
-      { id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' },
-    ]));
-  });
-  await page.reload();
-  await page.locator('#game-date-input').fill('2026-09-26');
-  await page.locator('#opponent-input').fill('Blue Team');
-  await page.locator('#tile-1').click();
-  await page.locator('#tile-2').click();
-  // Casey (id 3) is NOT checked in for this game.
-  await page.locator('#plan-ahead-btn').click();
-  for (let half = 1; half <= 2; half++) {
-    await page.locator('#lineup-field-positions [data-position="GK"]').click();
-    await page.locator('#lineup-unassigned-list .lineup-player[data-player-id="1"]').click();
-    await page.locator('#launch-btn').click();
-  }
-
-  await page.locator('#plan-subs-btn').click();
-  await expect(page.locator('#plan-subs-bench-list .lineup-player[data-player-id="2"]')).toBeVisible();
-  await expect(page.locator('#plan-subs-bench-list .lineup-player[data-player-id="3"]')).toHaveCount(0);
 });
 
 test('start new season clears roster history and photos but keeps settings', async ({ page }) => {
@@ -1632,11 +1590,7 @@ test('double header: game 2 can be planned ahead and becomes the next plan after
 
   const planLineup = async playerId => {
     await page.locator('#plan-ahead-btn').click();
-    for (let half = 1; half <= 2; half++) {
-      await page.locator('#lineup-field-positions [data-position="GK"]').click();
-      await page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${playerId}"]`).click();
-      await page.locator('#launch-btn').click();
-    }
+    await planFourQuarters(page, playerId);
   };
 
   // Game 1: Avery only.
@@ -1689,7 +1643,7 @@ test('double header: game 2 can be planned ahead and becomes the next plan after
   await expect(page.locator('#opponent-input')).toHaveValue('Game Two FC');
   await expect(page.locator('#tile-2')).toHaveClass(/selected/);
   await expect(page.locator('#tile-1')).not.toHaveClass(/selected/);
-  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineups planned for both halves');
+  await expect(page.locator('#plan-ahead-status-text')).toContainText('Lineup planned for all four quarters');
 
   await page.reload();
   await expect(page.locator('#opponent-input')).toHaveValue('Game Two FC');

@@ -309,7 +309,7 @@ export function goToSetup() {
   state.opponentName   = '';
   state.planOffset     = 0;
   state.isPrePlanning  = false;
-  state.prePlanHalf    = null;
+  state.prePlanQuarter = null;
   // Drops the plan for the game just played and loads game 2's queued plan, if any.
   promoteNextGamePlan();
   document.getElementById('opponent-input').value = state.opponentName;

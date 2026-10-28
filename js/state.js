@@ -37,13 +37,8 @@ export const state = {
   queuedPlans: [],
   planOffset: 0,
   isPrePlanning: false,
-  prePlanHalf: null,
+  prePlanQuarter: null,
   isHalftimeEdit: false,
-  isPlanningSubs: false,
-  planSubsHalf: null,
-  planSubsRounds: [],
-  planSubsCurrentRound: [],
-  planSubsPick: null,
   plannedSubRoundIndex: 0,
   pendingPlannedRoundIndex: null
 };

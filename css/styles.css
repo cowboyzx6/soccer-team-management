@@ -2073,6 +2073,7 @@
 
     .lineup-projection-table { width: 100%; font-size: 0.82rem; border-collapse: collapse; }
     .lineup-projection-table th, .lineup-projection-table td { padding: 4px 6px; text-align: left; }
+    .lineup-projection-table td:nth-child(2), .lineup-projection-table td:nth-child(3) { white-space: nowrap; }
     .lineup-projection-table td.zero-time { color: var(--btn-rm-color); font-weight: 700; }
 
     .btn-undo-sub {

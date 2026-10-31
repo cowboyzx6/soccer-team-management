@@ -288,20 +288,34 @@ test('planning shows projected minutes per player that update as quarters change
 
   // Q1 alone counts for 12:30; Q2 has not been planned yet.
   await slot('GK').click(); await bench(1).click();
-  await expect(row(1).locator('td').nth(1)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(1).locator('.gk-badge')).toHaveText('GK');
+  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveCount(0);
+  await expect(row(2).locator('.gk-badge')).toHaveCount(0);
+  await expect(row(1).locator('td').nth(1)).toContainText('12:30');
   await expect(row(2).locator('td').nth(1)).toHaveText('00:00');
 
   // Q2: Blake replaces Avery, so each plays half of Half 1.
   await page.locator('#launch-btn').click();
   await slot('GK').click();
   await slot('GK').click(); await bench(2).click();
-  await expect(row(1).locator('td').nth(1)).toHaveText('12:30');
-  await expect(row(2).locator('td').nth(1)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(1)).toContainText('12:30');
+  await expect(row(2).locator('td').nth(1)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(2).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
 
   // Q3 must not silently count Q4 as well.
   await page.locator('#launch-btn').click();
   await slot('GK').click(); await bench(1).click();
-  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveText('GK');
+  await slot('CF').click(); await bench(2).click();
+  await expect(row(2).locator('td').nth(2)).toContainText('12:30');
+  await expect(row(2).locator('td').nth(2).locator('.gk-badge')).toHaveCount(0);
+  // Removing the current goalie removes only this half's badge.
+  await slot('GK').click();
+  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveCount(0);
+  await expect(row(1).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
+  await slot('GK').click(); await bench(1).click();
   await expect(row(1).locator('td').nth(3)).toContainText('25:00');
 
   // Save Q3 by going back. Backup/restore and reload preserve its partial status.
@@ -314,16 +328,17 @@ test('planning shows projected minutes per player that update as quarters change
   });
   await page.reload();
   await page.locator('#plan-ahead-btn').click();
-  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveCount(1);
   await page.locator('#launch-btn').click();
   await page.locator('#launch-btn').click();
-  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
 
   // Reaching Q4 adds its prefilled lineup; going back retains that planned quarter.
   await page.locator('#launch-btn').click();
-  await expect(row(1).locator('td').nth(2)).toHaveText('25:00');
+  await expect(row(1).locator('td').nth(2)).toContainText('25:00');
   await page.locator('#lineup-back-btn').click();
-  await expect(row(1).locator('td').nth(2)).toHaveText('25:00');
+  await expect(row(1).locator('td').nth(2)).toContainText('25:00');
 });
 
 test('while planning, bench cards show which other quarters a player is already in', async ({ page }) => {

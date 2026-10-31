@@ -412,7 +412,10 @@ function renderProjection() {
   wrap.style.display = '';
 
   const quarterSeconds = state.halfMinutes * 60 / 2;
-  const totals = projectedSecondsByHalf(plannedQuarters(), quarterSeconds, [...state.savedChecked]);
+  const quarters = plannedQuarters();
+  const totals = projectedSecondsByHalf(quarters, quarterSeconds, [...state.savedChecked]);
+  const goalieBadge = (id, half) => quarters.some(q => q.half === half && q.lineup.GK === id)
+    ? ' <span class="gk-badge" title="Planned goalkeeper this half">GK</span>' : '';
   const names = new Map(state.lineupDraft.map(p => [p.id, p.name]));
   const rows = Object.entries(totals)
     .map(([id, t]) => ({ id: Number(id), name: names.get(Number(id)) || '?', ...t, total: t.half1 + t.half2 }))
@@ -421,8 +424,8 @@ function renderProjection() {
   document.getElementById('lineup-projection-body').innerHTML = rows.map(r => `
     <tr data-player-id="${r.id}">
       <td>${escHtml(r.name)}</td>
-      <td>${fmt(Math.round(r.half1))}</td>
-      <td>${fmt(Math.round(r.half2))}</td>
+      <td>${fmt(Math.round(r.half1))}${goalieBadge(r.id, 1)}</td>
+      <td>${fmt(Math.round(r.half2))}${goalieBadge(r.id, 2)}</td>
       <td class="total-col${r.total ? '' : ' zero-time'}">
         ${fmt(Math.round(r.total))}
         <div class="time-bar"><div class="time-bar-fill" style="width:${Math.round((r.total / maxTotal) * 100)}%"></div></div>

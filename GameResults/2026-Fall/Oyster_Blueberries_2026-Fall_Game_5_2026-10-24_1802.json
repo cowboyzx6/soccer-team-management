@@ -46,7 +46,7 @@
     },
     {
       "id": 9,
-      "name": "Cecile H.",
+      "name": "Ceci H.",
       "photo": null
     },
     {
@@ -184,7 +184,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 42.8,
           "secondsPlayed": 2565,
           "firstHalfSeconds": 1065,
@@ -531,7 +531,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 25.8,
           "secondsPlayed": 1545,
           "firstHalfSeconds": 712,
@@ -840,7 +840,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 37.5,
           "secondsPlayed": 2250,
           "firstHalfSeconds": 750,
@@ -1113,7 +1113,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 0,
           "secondsPlayed": 0,
           "firstHalfSeconds": 0,
@@ -1396,7 +1396,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 25.5,
           "secondsPlayed": 1527,
           "firstHalfSeconds": 807,

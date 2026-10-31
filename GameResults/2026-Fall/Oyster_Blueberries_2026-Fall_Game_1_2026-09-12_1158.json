@@ -45,7 +45,7 @@
     },
     {
       "id": 9,
-      "name": "Cecile H.",
+      "name": "Ceci H.",
       "photo": null
     },
     {
@@ -183,7 +183,7 @@
         },
         {
           "id": 9,
-          "name": "Cecile H.",
+          "name": "Ceci H.",
           "minutesPlayed": 42.8,
           "secondsPlayed": 2565,
           "firstHalfSeconds": 1065,

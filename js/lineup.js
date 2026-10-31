@@ -574,6 +574,7 @@ export function renderLineupField() {
       slot.dataset.playerId = String(assigned.id);
       const [avatarBg, avatarContent] = avatarParts(assigned.id, assigned.name);
       slot.innerHTML = `
+        ${quarterBadge(assigned.id)}
         <div class="pos-label">${pos}</div>
         <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
         <div class="pos-name">${escHtml(assigned.name)}</div>
@@ -590,14 +591,18 @@ export function renderLineupField() {
 }
 
 // While pre-planning, the other quarters (not the one being edited) in which
-// `playerId` is already on the field, e.g. "Q1, Q2", so the bench card can show
-// where a player has already played.
+// `playerId` is already on the field, e.g. "Q1, Q2", for both bench and pitch badges.
 function quartersPlayed(playerId) {
   if (!state.isPrePlanning) return '';
   return plannedQuarters()
     .filter(({ q, lineup }) => q !== state.prePlanQuarter && Object.values(lineup).includes(playerId))
     .map(({ q }) => `Q${q}`)
     .join(', ');
+}
+
+function quarterBadge(playerId) {
+  const played = quartersPlayed(playerId);
+  return played ? `<span class="lineup-half-badge">${played}</span>` : '';
 }
 
 function renderLineupPlayers() {
@@ -627,9 +632,7 @@ function renderLineupPlayers() {
     const item = document.createElement('div');
     item.className = 'lineup-player' + (p.id === state.selectedLineupPlayer ? ' selected' : '');
     item.dataset.playerId = String(p.id);
-    const played = quartersPlayed(p.id);
-    const badge = played ? `<span class="lineup-half-badge">${played}</span>` : '';
-    item.innerHTML = `${badge}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
+    item.innerHTML = `${quarterBadge(p.id)}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
     item.onclick = () => lineupPlayerTap(p.id);
     list.appendChild(item);
   });

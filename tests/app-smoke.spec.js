@@ -341,7 +341,7 @@ test('planning shows projected minutes per player that update as quarters change
   await expect(row(1).locator('td').nth(2)).toContainText('25:00');
 });
 
-test('while planning, bench cards show which other quarters a player is already in', async ({ page }) => {
+test('while planning, bench and pitch players show their other assigned quarters', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }, { id: 3, name: 'Casey' }]));
   });
@@ -355,8 +355,11 @@ test('while planning, bench cards show which other quarters a player is already 
 
   // Q1: Avery in goal, Blake at CF. Q2: Casey replaces Blake at CF.
   await slot('GK').click(); await card(1).click();
+  await expect(slot('GK').locator('.lineup-half-badge')).toHaveCount(0);
   await slot('CF').click(); await card(2).click();
   await page.locator('#launch-btn').click();
+  await expect(slot('GK').locator('.lineup-half-badge')).toHaveText('Q1');
+  await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1');
   await slot('CF').click();
   await slot('CF').click(); await card(3).click();
   await page.locator('#launch-btn').click();
@@ -366,6 +369,16 @@ test('while planning, bench cards show which other quarters a player is already 
   await expect(card(1).locator('.lineup-half-badge')).toHaveText('Q1, Q2');
   await expect(card(2).locator('.lineup-half-badge')).toHaveText('Q1');
   await expect(card(3).locator('.lineup-half-badge')).toHaveText('Q2');
+  await slot('GK').click(); await card(1).click();
+  await expect(slot('GK').locator('.lineup-half-badge')).toHaveText('Q1, Q2');
+  await slot('CF').click(); await card(2).click();
+  await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1');
+  await page.locator('#launch-btn').click();
+  await expect(slot('GK').locator('.lineup-half-badge')).toHaveText('Q1, Q2, Q3');
+  await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1, Q3');
+  // Returning a player to the bench preserves the same quarter badge.
+  await slot('CF').click();
+  await expect(card(2).locator('.lineup-half-badge')).toHaveText('Q1, Q3');
 });
 
 test('lineup drag uses an expanded drop zone around position slots', async ({ page }) => {

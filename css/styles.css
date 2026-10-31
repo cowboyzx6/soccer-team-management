@@ -1092,6 +1092,42 @@
       overflow-y: auto;
     }
 
+    /* Narrow phones can't fit the field diagram and a 6-column minutes table
+       side by side; stack them instead so the table gets full width. */
+    @media (max-width: 680px) {
+      #lineup-screen.active {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-y: auto;
+      }
+      .lineup-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .lineup-layout {
+        flex-direction: column;
+        overflow: visible;
+      }
+      .lineup-field-panel {
+        flex: none;
+        width: 100%;
+        border-right: none;
+        border-bottom: 2px solid var(--accent-dark);
+      }
+      .lineup-field-panel .field-diagram {
+        flex: none;
+        aspect-ratio: 4 / 3;
+        min-height: 260px;
+      }
+      .lineup-players-panel {
+        flex: none;
+        width: 100%;
+        overflow-y: visible;
+      }
+    }
+
     .lineup-panel-title {
       font-size: 0.72rem;
       font-weight: 700;

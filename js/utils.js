@@ -12,6 +12,15 @@ export function fmt(secs) {
   return `${m}:${s}`;
 }
 
+// Drops the last-initial part of a player's name (e.g. "Cecile H." -> "Cecile")
+// unless another name in `allNames` shares the same first name, in which case
+// the full name is kept to tell them apart.
+export function shortDisplayName(name, allNames) {
+  const first = name.split(' ')[0];
+  const hasDuplicate = allNames.filter(n => n.split(' ')[0] === first).length > 1;
+  return hasDuplicate ? name : first;
+}
+
 export function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }

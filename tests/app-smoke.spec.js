@@ -1629,7 +1629,12 @@ test('lineup screen field and unassigned list do not overlap at phone width', as
 
   const fieldBox = await page.locator('#lineup-field-positions').boundingBox();
   const listBox = await page.locator('#lineup-unassigned-list').boundingBox();
-  expect(fieldBox.x + fieldBox.width <= listBox.x || listBox.x + listBox.width <= fieldBox.x).toBe(true);
+  // At phone width the panels stack vertically instead of sitting side by side,
+  // so check for no overlap on either axis rather than assuming a horizontal split.
+  const noOverlap =
+    fieldBox.x + fieldBox.width <= listBox.x || listBox.x + listBox.width <= fieldBox.x ||
+    fieldBox.y + fieldBox.height <= listBox.y || listBox.y + listBox.height <= fieldBox.y;
+  expect(noOverlap).toBe(true);
 });
 
 test('summary screen has no horizontal overflow at phone width', async ({ page }, testInfo) => {

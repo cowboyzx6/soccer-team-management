@@ -1,4 +1,4 @@
-const CACHE_VERSION = '1.26304.1';
+const CACHE_VERSION = '1.26304.2';
 const CACHE = `stm-${CACHE_VERSION}`;
 const ASSETS = [
   './',

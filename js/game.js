@@ -2,7 +2,7 @@ import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { buildGameRecord, clearActiveGame, exportProfile, saveActiveGame, saveGameHistory } from './persistence.js';
 import { avatarHtml, avatarParts } from './roster.js';
 import { showSummary } from './summary.js';
-import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
+import { closeModal, escHtml, fmt, openModal, shortDisplayName, showScreen } from './utils.js';
 import { createFieldDragPreview, findNearestSlot, moveFieldDragPreview, openHalftimeLineup, removeFieldDragPreview } from './lineup.js';
 
 let intervalId = null;
@@ -286,6 +286,7 @@ export function handleFieldSlotPointerUp(e) {
 export function renderField(fairShare) {
   const container     = document.getElementById('field-positions');
   container.innerHTML = '';
+  const allNames = state.players.map(p => p.name);
 
   // Render position slots
   POSITION_ORDER.forEach(pos => {
@@ -305,7 +306,7 @@ export function renderField(fairShare) {
     const plan           = state.subPlans.find(pl => pl.pos === pos);
     const incomingPlayer = plan ? state.players.find(p => p.id === plan.inId) : null;
     const incomingHtml   = incomingPlayer
-      ? `<div class="pos-incoming">&#8593; ${escHtml(incomingPlayer.name)}</div>`
+      ? `<div class="pos-incoming">&#8593; ${escHtml(shortDisplayName(incomingPlayer.name, allNames))}</div>`
       : '';
     const planClass      = plan ? ' planned-out' : '';
 
@@ -322,7 +323,7 @@ export function renderField(fairShare) {
       slot.innerHTML = `
         <div class="pos-label">${pos}</div>
         <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
-        <div class="pos-name">${escHtml(player.name)}</div>
+        <div class="pos-name">${escHtml(shortDisplayName(player.name, allNames))}</div>
         <div class="pos-time">${fmt(getPlayedTime(player))}</div>
         ${incomingHtml}
         <button class="pos-bench-btn" title="Move to bench">\u2193 bench</button>
@@ -345,6 +346,7 @@ export function renderField(fairShare) {
 export function renderGrid(gridId, list, zone, fairShare) {
   const grid = document.getElementById(gridId);
   grid.innerHTML = '';
+  const allNames = state.players.map(p => p.name);
   list.forEach(player => {
     const status   = getStatus(player, fairShare);
     const time     = getPlayedTime(player);
@@ -358,7 +360,7 @@ export function renderGrid(gridId, list, zone, fairShare) {
     let sublabel = '';
     if (plan) {
       const outPlayer = state.players.find(p => p.onField && p.position === plan.pos);
-      sublabel = `\u2192 ${escHtml(plan.pos)}${outPlayer ? ` \u00B7 ${escHtml(outPlayer.name)} out` : ''}`;
+      sublabel = `\u2192 ${escHtml(plan.pos)}${outPlayer ? ` \u00B7 ${escHtml(shortDisplayName(outPlayer.name, allNames))} out` : ''}`;
     } else if (isPicked) {
       sublabel = 'tap a field spot...';
     }
@@ -378,7 +380,7 @@ export function renderGrid(gridId, list, zone, fairShare) {
     card.innerHTML = `
       <div class="p-avatar" style="${avatarBg}">${avatarContent}</div>
       <div class="p-info">
-        <div class="p-name">${escHtml(player.name)}</div>
+        <div class="p-name">${escHtml(shortDisplayName(player.name, allNames))}</div>
         <div class="p-time">${fmt(time)}</div>
         ${benchStreakHtml}
         <div class="p-sublabel">${sublabel}</div>
@@ -446,15 +448,16 @@ let lastTrayHtml = null;
 // Tray of pending pairs + Sub Now + Undo. Rows are only rebuilt when they change,
 // so the once-a-second clock render can't swallow a tap on ✕ or Sub Now.
 export function renderSubTray() {
+  const allNames = state.players.map(p => p.name);
   const rows = state.subPlans.map(({ inId, pos }) => {
     const inn = state.players.find(p => p.id === inId);
     if (!inn) return '';
     const out = state.players.find(p => p.onField && p.position === pos);
     const outHtml = out
-      ? `<span class="sub-tray-out">⇄ ${escHtml(out.name)} out</span>`
+      ? `<span class="sub-tray-out">⇄ ${escHtml(shortDisplayName(out.name, allNames))} out</span>`
       : '<span class="sub-tray-out">(empty)</span>';
     return `<div class="sub-tray-row">
-        <span class="sub-tray-in">${escHtml(inn.name)} → ${escHtml(pos)}</span>
+        <span class="sub-tray-in">${escHtml(shortDisplayName(inn.name, allNames))} → ${escHtml(pos)}</span>
         ${outHtml}
         <button class="sub-tray-remove" data-pos="${escHtml(pos)}" title="Remove this sub">✕</button>
       </div>`;

@@ -417,13 +417,14 @@ function renderProjection() {
   const goalieBadge = (id, quarter) => quarters.some(q => q.q === quarter && q.lineup.GK === id)
     ? ' <span class="gk-badge" title="Planned goalkeeper this quarter">GK</span>' : '';
   const names = new Map(state.lineupDraft.map(p => [p.id, p.name]));
+  const allNames = state.lineupDraft.map(p => p.name);
   const rows = Object.entries(totals)
     .map(([id, t]) => ({ id: Number(id), name: names.get(Number(id)) || '?', ...t, total: t.q1 + t.q2 + t.q3 + t.q4 }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const maxTotal = Math.max(1, ...rows.map(r => r.total));
   document.getElementById('lineup-projection-body').innerHTML = rows.map(r => `
     <tr data-player-id="${r.id}">
-      <td>${escHtml(r.name)}</td>
+      <td>${escHtml(shortDisplayName(r.name, allNames))}</td>
       ${[1, 2, 3, 4].map(q => `<td>${fmt(Math.round(r[`q${q}`]))}${goalieBadge(r.id, q)}</td>`).join('')}
       <td class="total-col${r.total ? '' : ' zero-time'}">
         ${fmt(Math.round(r.total))}

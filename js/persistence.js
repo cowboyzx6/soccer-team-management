@@ -257,6 +257,7 @@ export function buildProfile(includeGameRecord) {
     const opponent = plan.opponent || (isNext ? state.opponentName : '');
     return {
       gameNumber: plan.gameNumber,
+      ...(plan.plannedThroughQuarter ? { plannedThroughQuarter: plan.plannedThroughQuarter } : {}),
       ...(date ? { date } : {}),
       ...(opponent ? { opponent } : {}),
       playerIds: [...new Set([...(plan.playerIds || []), ...lineupPlayerIds])],

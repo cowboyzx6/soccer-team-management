@@ -269,7 +269,7 @@ test('going back through the planning quarters keeps each quarter and only chang
 test('planning shows projected minutes per player that update as quarters change', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }, { id: 2, name: 'Blake' }]));
-    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 24 }));
+    localStorage.setItem('soccerSettings', JSON.stringify({ teamName: 'Oyster Blueberries', halfMinutes: 25 }));
   });
   await page.reload();
   await page.locator('#opponent-input').fill('Blue Team');
@@ -282,21 +282,48 @@ test('planning shows projected minutes per player that update as quarters change
   const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
   const bench = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
 
-  // Everyone is listed from the start, with zero until placed. Quarters are 12 minutes here.
+  // Everyone is listed from the start, with zero until placed.
   await expect(row(1)).toContainText('00:00');
   await expect(row(2)).toContainText('00:00');
 
-  // Avery in goal in Q1; with no sub planned, that holds for Q2 as well.
+  // Q1 alone counts for 12:30; Q2 has not been planned yet.
   await slot('GK').click(); await bench(1).click();
-  await expect(row(1).locator('td').nth(1)).toHaveText('24:00');
+  await expect(row(1).locator('td').nth(1)).toHaveText('12:30');
   await expect(row(2).locator('td').nth(1)).toHaveText('00:00');
 
   // Q2: Blake replaces Avery, so each plays half of Half 1.
   await page.locator('#launch-btn').click();
   await slot('GK').click();
   await slot('GK').click(); await bench(2).click();
-  await expect(row(1).locator('td').nth(1)).toHaveText('12:00');
-  await expect(row(2).locator('td').nth(1)).toHaveText('12:00');
+  await expect(row(1).locator('td').nth(1)).toHaveText('12:30');
+  await expect(row(2).locator('td').nth(1)).toHaveText('12:30');
+
+  // Q3 must not silently count Q4 as well.
+  await page.locator('#launch-btn').click();
+  await slot('GK').click(); await bench(1).click();
+  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+  await expect(row(1).locator('td').nth(3)).toContainText('25:00');
+
+  // Save Q3 by going back. Backup/restore and reload preserve its partial status.
+  await page.locator('#lineup-back-btn').click();
+  await page.evaluate(async () => {
+    const { buildProfile } = await import('/js/persistence.js');
+    const { normalizeProfile } = await import('/js/profile-normalizer.js');
+    const profile = normalizeProfile(buildProfile(false), { requireRoster: true });
+    localStorage.setItem('soccerGamePlan', JSON.stringify(profile.gamePlan));
+  });
+  await page.reload();
+  await page.locator('#plan-ahead-btn').click();
+  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+  await page.locator('#launch-btn').click();
+  await page.locator('#launch-btn').click();
+  await expect(row(1).locator('td').nth(2)).toHaveText('12:30');
+
+  // Reaching Q4 adds its prefilled lineup; going back retains that planned quarter.
+  await page.locator('#launch-btn').click();
+  await expect(row(1).locator('td').nth(2)).toHaveText('25:00');
+  await page.locator('#lineup-back-btn').click();
+  await expect(row(1).locator('td').nth(2)).toHaveText('25:00');
 });
 
 test('while planning, bench cards show which other quarters a player is already in', async ({ page }) => {
@@ -629,6 +656,7 @@ test('one-player planning backup includes attendance opponent and date', async (
 
   expect(profile.gamePlan).toEqual({
     gameNumber: 2,
+    plannedThroughQuarter: 4,
     date: '2026-09-26',
     opponent: 'Blue Team',
     playerIds: [1],

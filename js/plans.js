@@ -46,6 +46,11 @@ export const QUARTER_LABELS = {
   4: 'Q4 · Mid Half 2',
 };
 
+// Older plans have no progress marker and treat each saved half as complete.
+export function lastPlannedQuarter(plan) {
+  return plan?.plannedThroughQuarter ?? (plan?.half2 ? 4 : plan?.half1 ? 2 : 0);
+}
+
 // Applies the first `roundCount` rounds onto a copy of the base position map.
 // Skips a pair whose incoming player is already on the field in the map.
 export function effectiveLineupAt(baseLineup, rounds, roundCount) {

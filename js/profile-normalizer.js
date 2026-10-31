@@ -116,6 +116,8 @@ export function normalizeGamePlan(value, {
 
   return {
     gameNumber,
+    ...(Number.isInteger(value.plannedThroughQuarter) && value.plannedThroughQuarter >= 1 && value.plannedThroughQuarter <= 4
+      ? { plannedThroughQuarter: value.plannedThroughQuarter } : {}),
     ...(date ? { date } : {}),
     ...(opponent ? { opponent } : {}),
     playerIds: plannedPlayerIds,

@@ -7,6 +7,7 @@ import {
   ensureActivePlan,
   effectiveLineupAt,
   getActivePlan,
+  lastPlannedQuarter,
   projectedSecondsByHalf,
   QUARTER_LABELS,
   quarterLineup,
@@ -158,6 +159,7 @@ function buildPositionMapFromDraft() {
 function saveQuarterDraft(q) {
   const posMap = buildPositionMapFromDraft();
   const plan = ensureActivePlan();
+  plan.plannedThroughQuarter = Math.max(lastPlannedQuarter(plan), q);
   plan.gameNumber = targetGameNumber();
   plan.date = state.gameDate;
   plan.opponent = state.opponentName;
@@ -376,9 +378,9 @@ export function renderLineup() {
 }
 
 // The four planned quarters as { q, half, lineup }, using the on-screen draft for
-// the quarter being edited and the saved plan for the rest. A mid-half quarter
-// that has no saved sub round assumes no change from the start of its half; a
-// half with no start lineup yet contributes nothing.
+// the quarter being edited and the saved plan for the rest. Only quarters
+// already reached in planning contribute time; a saved unchanged mid-half
+// quarter uses its half's starting lineup.
 function plannedQuarters() {
   const plan = getActivePlan();
   const current = state.prePlanQuarter;
@@ -395,7 +397,8 @@ function plannedQuarters() {
       lineup: current === startQ + 1 ? draft : effectiveLineupAt(base, (plan && plan[`half${half}Subs`]) || [], 1),
     });
   });
-  return quarters;
+  const through = Math.max(current, lastPlannedQuarter(plan));
+  return quarters.filter(({ q }) => q <= through);
 }
 
 // Shows each player's projected time on the field across the planned quarters,

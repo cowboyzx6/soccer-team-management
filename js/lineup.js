@@ -1,6 +1,6 @@
 import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { avatarHtml, avatarParts, checkedPlayers, renderGameDayCheckboxes } from './roster.js';
-import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
+import { closeModal, escHtml, fmt, openModal, shortDisplayName, showScreen } from './utils.js';
 import { saveGamePlan } from './persistence.js';
 import {
   deriveSubRound,
@@ -471,7 +471,7 @@ export function handleLineupPointerMove(e) {
   lineupPointerDrag.sourceItem.classList.add('dragging');
   if (!lineupPointerDrag.preview) {
     const player = state.lineupDraft.find(p => p.id === lineupPointerDrag.playerId);
-    if (player) lineupPointerDrag.preview = createFieldDragPreview(player, player.position);
+    if (player) lineupPointerDrag.preview = createFieldDragPreview(player, player.position, state.lineupDraft.map(p => p.name));
   }
   moveFieldDragPreview(lineupPointerDrag.preview, e.clientX, e.clientY);
 
@@ -553,6 +553,7 @@ function moveLineupPlayerToPosition(playerId, targetPos) {
 export function renderLineupField() {
   const container = document.getElementById('lineup-field-positions');
   container.innerHTML = '';
+  const allNames = state.lineupDraft.map(p => p.name);
 
   POSITION_ORDER.forEach(pos => {
     const coords = POSITIONS[pos];
@@ -578,7 +579,7 @@ export function renderLineupField() {
           <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
           ${quarterBadge(assigned.id)}
         </div>
-        <div class="pos-name">${escHtml(assigned.name)}</div>
+        <div class="pos-name">${escHtml(shortDisplayName(assigned.name, allNames))}</div>
       `;
     } else {
       slot.innerHTML = `
@@ -610,13 +611,14 @@ function renderLineupPlayers() {
   const list = document.getElementById('lineup-unassigned-list');
   const unassigned = state.lineupDraft.filter(p => !p.position);
   const hint = document.getElementById('lineup-hint');
+  const allNames = state.lineupDraft.map(p => p.name);
 
   if (state.selectedLineupSlot) {
     hint.textContent = `Slot ${state.selectedLineupSlot} selected \u2014 tap a player to assign them.`;
     hint.className = 'lineup-hint active';
   } else if (state.selectedLineupPlayer) {
     const p = state.lineupDraft.find(dp => dp.id === state.selectedLineupPlayer);
-    hint.textContent = `${p ? p.name : 'Player'} selected \u2014 tap a position slot to place them.`;
+    hint.textContent = `${p ? shortDisplayName(p.name, allNames) : 'Player'} selected \u2014 tap a position slot to place them.`;
     hint.className = 'lineup-hint active';
   } else {
     hint.textContent = 'Tap a position or a player to start assigning.';
@@ -633,7 +635,7 @@ function renderLineupPlayers() {
     const item = document.createElement('div');
     item.className = 'lineup-player' + (p.id === state.selectedLineupPlayer ? ' selected' : '');
     item.dataset.playerId = String(p.id);
-    item.innerHTML = `${quarterBadge(p.id)}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(p.name)}</span>`;
+    item.innerHTML = `${quarterBadge(p.id)}${avatarHtml(p.id, p.name, 44)}<span class="lineup-player-name">${escHtml(shortDisplayName(p.name, allNames))}</span>`;
     item.onclick = () => lineupPlayerTap(p.id);
     list.appendChild(item);
   });
@@ -1034,14 +1036,14 @@ function initGame() {
   document.dispatchEvent(new CustomEvent('game:started'));
 }
 
-export function createFieldDragPreview(player, position) {
+export function createFieldDragPreview(player, position, allNames = [player.name]) {
   const [avatarBg, avatarContent] = avatarParts(player.id, player.name);
   const preview = document.createElement('div');
   preview.className = 'field-drag-preview';
   preview.innerHTML = `
     <div class="pos-label">${position || ''}</div>
     <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
-    <div class="pos-name">${escHtml(player.name)}</div>
+    <div class="pos-name">${escHtml(shortDisplayName(player.name, allNames))}</div>
   `;
   document.body.appendChild(preview);
   return preview;

@@ -249,7 +249,7 @@ export function handleFieldSlotPointerMove(e) {
   fieldPointerDrag.sourceSlot.classList.add('dragging');
   if (!fieldPointerDrag.preview) {
     const player = state.players.find(p => p.id === fieldPointerDrag.playerId);
-    if (player) fieldPointerDrag.preview = createFieldDragPreview(player, player.position);
+    if (player) fieldPointerDrag.preview = createFieldDragPreview(player, player.position, state.players.map(p => p.name));
   }
   moveFieldDragPreview(fieldPointerDrag.preview, e.clientX, e.clientY);
 

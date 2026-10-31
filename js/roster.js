@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { closeModal, escHtml, openModal } from './utils.js';
+import { closeModal, escHtml, openModal, shortDisplayName } from './utils.js';
 import { saveGamePlan, saveRoster, saveSettings } from './persistence.js';
 import { MAX_PLAN_OFFSET, getActivePlan, nextGameNumber, targetGameNumber } from './plans.js';
 
@@ -270,12 +270,13 @@ export function renderGameDayCheckboxes(restoreChecked = shouldRestoreChecked())
   const savedChecked = new Set([...state.savedChecked, ...plannedPlayerIds]);
   const list   = document.getElementById('gameday-roster');
   const sorted = [...state.roster].sort((a, b) => a.name.localeCompare(b.name));
+  const allNames = state.roster.map(p => p.name);
   list.innerHTML = sorted.map(p => {
     const sel = restoreChecked && savedChecked.has(p.id);
     return `<div class="player-tile${sel ? ' selected' : ''}" id="tile-${p.id}" data-player-id="${p.id}">
       <div class="tile-check">&#10003;</div>
       ${avatarHtml(p.id, p.name, 48)}
-      <span class="player-name-text">${escHtml(p.name)}</span>
+      <span class="player-name-text">${escHtml(shortDisplayName(p.name, allNames))}</span>
     </div>`;
   }).join('');
   updateCheckedCount();

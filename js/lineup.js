@@ -8,7 +8,7 @@ import {
   effectiveLineupAt,
   getActivePlan,
   lastPlannedQuarter,
-  projectedSecondsByHalf,
+  projectedSecondsByQuarter,
   QUARTER_LABELS,
   quarterLineup,
   setActivePlan,
@@ -413,19 +413,18 @@ function renderProjection() {
 
   const quarterSeconds = state.halfMinutes * 60 / 2;
   const quarters = plannedQuarters();
-  const totals = projectedSecondsByHalf(quarters, quarterSeconds, [...state.savedChecked]);
-  const goalieBadge = (id, half) => quarters.some(q => q.half === half && q.lineup.GK === id)
-    ? ' <span class="gk-badge" title="Planned goalkeeper this half">GK</span>' : '';
+  const totals = projectedSecondsByQuarter(quarters, quarterSeconds, [...state.savedChecked]);
+  const goalieBadge = (id, quarter) => quarters.some(q => q.q === quarter && q.lineup.GK === id)
+    ? ' <span class="gk-badge" title="Planned goalkeeper this quarter">GK</span>' : '';
   const names = new Map(state.lineupDraft.map(p => [p.id, p.name]));
   const rows = Object.entries(totals)
-    .map(([id, t]) => ({ id: Number(id), name: names.get(Number(id)) || '?', ...t, total: t.half1 + t.half2 }))
+    .map(([id, t]) => ({ id: Number(id), name: names.get(Number(id)) || '?', ...t, total: t.q1 + t.q2 + t.q3 + t.q4 }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const maxTotal = Math.max(1, ...rows.map(r => r.total));
   document.getElementById('lineup-projection-body').innerHTML = rows.map(r => `
     <tr data-player-id="${r.id}">
       <td>${escHtml(r.name)}</td>
-      <td>${fmt(Math.round(r.half1))}${goalieBadge(r.id, 1)}</td>
-      <td>${fmt(Math.round(r.half2))}${goalieBadge(r.id, 2)}</td>
+      ${[1, 2, 3, 4].map(q => `<td>${fmt(Math.round(r[`q${q}`]))}${goalieBadge(r.id, q)}</td>`).join('')}
       <td class="total-col${r.total ? '' : ' zero-time'}">
         ${fmt(Math.round(r.total))}
         <div class="time-bar"><div class="time-bar-fill" style="width:${Math.round((r.total / maxTotal) * 100)}%"></div></div>
@@ -574,9 +573,11 @@ export function renderLineupField() {
       slot.dataset.playerId = String(assigned.id);
       const [avatarBg, avatarContent] = avatarParts(assigned.id, assigned.name);
       slot.innerHTML = `
-        ${quarterBadge(assigned.id)}
         <div class="pos-label">${pos}</div>
-        <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
+        <div class="lineup-avatar-row">
+          <div class="pos-avatar" style="${avatarBg}">${avatarContent}</div>
+          ${quarterBadge(assigned.id)}
+        </div>
         <div class="pos-name">${escHtml(assigned.name)}</div>
       `;
     } else {

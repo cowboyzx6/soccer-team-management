@@ -1076,6 +1076,7 @@
 
     .lineup-field-panel {
       flex: 0 0 55%;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       padding: 8px;
@@ -1169,6 +1170,21 @@
       white-space: nowrap;
       pointer-events: none;
       box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    }
+
+    .lineup-avatar-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+
+    .lineup-avatar-row .pos-avatar { margin: 0; flex-shrink: 0; }
+    .lineup-avatar-row .lineup-half-badge {
+      position: static;
+      max-width: 54px;
+      white-space: normal;
     }
 
     .lineup-player-name {
@@ -2071,9 +2087,10 @@
     .sub-tray-remove:active { background: rgba(255,255,255,0.12); }
     .sub-tray .btn-sub-now { margin: 0; min-height: 44px; }
 
+    #lineup-projection { overflow-x: auto; }
     .lineup-projection-table { width: 100%; font-size: 0.82rem; border-collapse: collapse; }
     .lineup-projection-table th, .lineup-projection-table td { padding: 4px 6px; text-align: left; }
-    .lineup-projection-table td:nth-child(2), .lineup-projection-table td:nth-child(3) { white-space: nowrap; }
+    .lineup-projection-table td:not(:first-child) { white-space: nowrap; }
     .lineup-projection-table td.zero-time { color: var(--btn-rm-color); font-weight: 700; }
 
     .btn-undo-sub {

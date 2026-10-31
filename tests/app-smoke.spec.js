@@ -279,6 +279,7 @@ test('planning shows projected minutes per player that update as quarters change
   await page.locator('#plan-ahead-btn').click();
 
   const row = id => page.locator(`#lineup-projection-body tr[data-player-id="${id}"]`);
+  await expect(page.locator('.lineup-projection-table th')).toHaveText(['Player', 'Q1', 'Q2', 'Q3', 'Q4', 'Total']);
   const slot = pos => page.locator(`#lineup-field-positions [data-position="${pos}"]`);
   const bench = id => page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${id}"]`);
 
@@ -299,24 +300,27 @@ test('planning shows projected minutes per player that update as quarters change
   await slot('GK').click();
   await slot('GK').click(); await bench(2).click();
   await expect(row(1).locator('td').nth(1)).toContainText('12:30');
-  await expect(row(2).locator('td').nth(1)).toContainText('12:30');
+  await expect(row(2).locator('td').nth(1)).toHaveText('00:00');
+  await expect(row(2).locator('td').nth(2)).toContainText('12:30');
   await expect(row(1).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
-  await expect(row(2).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(2).locator('td').nth(2).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(1).locator('td').nth(2)).toHaveText('00:00');
 
   // Q3 must not silently count Q4 as well.
   await page.locator('#launch-btn').click();
   await slot('GK').click(); await bench(1).click();
-  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
-  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveText('GK');
+  await expect(row(1).locator('td').nth(3)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(3).locator('.gk-badge')).toHaveText('GK');
+  await expect(row(1).locator('td').nth(4)).toHaveText('00:00');
   await slot('CF').click(); await bench(2).click();
-  await expect(row(2).locator('td').nth(2)).toContainText('12:30');
-  await expect(row(2).locator('td').nth(2).locator('.gk-badge')).toHaveCount(0);
+  await expect(row(2).locator('td').nth(3)).toHaveText('12:30');
+  await expect(row(2).locator('td').nth(3).locator('.gk-badge')).toHaveCount(0);
   // Removing the current goalie removes only this half's badge.
   await slot('GK').click();
-  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveCount(0);
+  await expect(row(1).locator('td').nth(3).locator('.gk-badge')).toHaveCount(0);
   await expect(row(1).locator('td').nth(1).locator('.gk-badge')).toHaveCount(1);
   await slot('GK').click(); await bench(1).click();
-  await expect(row(1).locator('td').nth(3)).toContainText('25:00');
+  await expect(row(1).locator('td').nth(5)).toContainText('25:00');
 
   // Save Q3 by going back. Backup/restore and reload preserve its partial status.
   await page.locator('#lineup-back-btn').click();
@@ -328,17 +332,26 @@ test('planning shows projected minutes per player that update as quarters change
   });
   await page.reload();
   await page.locator('#plan-ahead-btn').click();
-  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
-  await expect(row(1).locator('td').nth(2).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(1).locator('td').nth(3)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(3).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(1).locator('td').nth(4)).toHaveText('00:00');
   await page.locator('#launch-btn').click();
   await page.locator('#launch-btn').click();
-  await expect(row(1).locator('td').nth(2)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(3)).toContainText('12:30');
 
   // Reaching Q4 adds its prefilled lineup; going back retains that planned quarter.
   await page.locator('#launch-btn').click();
-  await expect(row(1).locator('td').nth(2)).toContainText('25:00');
+  await expect(row(1).locator('td').nth(3)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(4)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(4).locator('.gk-badge')).toHaveCount(1);
+  await expect(row(1).locator('td').nth(5)).toContainText('37:30');
   await page.locator('#lineup-back-btn').click();
-  await expect(row(1).locator('td').nth(2)).toContainText('25:00');
+  await expect(row(1).locator('td').nth(4)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(5)).toContainText('37:30');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.locator('#lineup-projection').evaluate(el =>
+    el.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
 });
 
 test('while planning, bench and pitch players show their other assigned quarters', async ({ page }) => {

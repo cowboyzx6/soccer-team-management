@@ -86,17 +86,17 @@ export function quarterLineup(plan, q) {
   return effectiveLineupAt(base, plan[`half${half}Subs`] || [], 1);
 }
 
-// Seconds each player is on the field in each half, given the planned
-// lineups. `quarters` is a list of { half, lineup } (position -> player id),
+// Seconds each player is on the field in each quarter, given the planned
+// lineups. `quarters` is a list of { q, lineup } (position -> player id),
 // each lasting `quarterSeconds`. Players in `playerIds` who are never on the
 // field still appear, with zero.
-export function projectedSecondsByHalf(quarters, quarterSeconds, playerIds = []) {
+export function projectedSecondsByQuarter(quarters, quarterSeconds, playerIds = []) {
   const totals = {};
-  playerIds.forEach(id => { totals[id] = { half1: 0, half2: 0 }; });
-  quarters.forEach(({ half, lineup }) => {
+  playerIds.forEach(id => { totals[id] = { q1: 0, q2: 0, q3: 0, q4: 0 }; });
+  quarters.forEach(({ q, lineup }) => {
     Object.values(lineup).forEach(id => {
-      if (!totals[id]) totals[id] = { half1: 0, half2: 0 };
-      totals[id][`half${half}`] += quarterSeconds;
+      if (!totals[id]) totals[id] = { q1: 0, q2: 0, q3: 0, q4: 0 };
+      totals[id][`q${q}`] += quarterSeconds;
     });
   });
   return totals;

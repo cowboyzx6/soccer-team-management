@@ -1968,7 +1968,38 @@
       "opponent": "Lafayette Ladybugs",
       "ourScore": 5,
       "theirScore": 2,
-      "goals": [],
+      "goals": [
+        {
+          "scorer": "Claire M.",
+          "scorerId": 10,
+          "half": 1,
+          "team": "us"
+        },
+        {
+          "scorer": "Claire M.",
+          "scorerId": 10,
+          "half": 1,
+          "team": "us"
+        },
+        {
+          "scorer": "Hazel S.",
+          "scorerId": 18,
+          "half": 1,
+          "team": "us"
+        },
+        {
+          "scorer": "Hazel S.",
+          "scorerId": 18,
+          "half": 1,
+          "team": "us"
+        },
+        {
+          "scorer": "Mei Mei H.",
+          "scorerId": 13,
+          "half": 1,
+          "team": "us"
+        }
+      ],
       "playerStats": [
         {
           "id": 2,

@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { closeModal, escHtml, openModal, shortDisplayName } from './utils.js';
+import { closeModal, escHtml, localDateString, openModal, shortDisplayName } from './utils.js';
 import { saveGamePlan, saveRoster, saveSettings } from './persistence.js';
 import { MAX_PLAN_OFFSET, getActivePlan, nextGameNumber, targetGameNumber } from './plans.js';
 
@@ -254,7 +254,7 @@ export function renderGameDayCheckboxes(restoreChecked = shouldRestoreChecked())
   document.getElementById('game-number-label').textContent = state.planOffset
     ? `Game ${targetGameNumber()} — planning ahead`
     : `Game ${nextGameNumber()}`;
-  if (!state.gameDate) state.gameDate = new Date().toISOString().slice(0, 10);
+  if (!state.gameDate) state.gameDate = localDateString();
   document.getElementById('game-date-input').value = state.gameDate;
   const oppInput = document.getElementById('opponent-input');
   if (oppInput && !oppInput.value && state.opponentName) oppInput.value = state.opponentName;

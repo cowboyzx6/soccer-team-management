@@ -12,6 +12,13 @@ export function fmt(secs) {
   return `${m}:${s}`;
 }
 
+export function localDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Drops the last-initial part of a player's name (e.g. "Cecile H." -> "Cecile")
 // unless another name in `allNames` shares the same first name, in which case
 // the full name is kept to tell them apart.

@@ -1,5 +1,5 @@
 import { POSITIONS, state } from './state.js';
-import { showScreen } from './utils.js';
+import { localDateString, showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
 import { normalizeGamePlan, normalizeProfile } from './profile-normalizer.js';
 
@@ -182,7 +182,7 @@ export function checkForActiveGame() {
   state.subPick          = null;
   state.plannedSubRoundIndex = Number.isInteger(saved.plannedSubRoundIndex) ? saved.plannedSubRoundIndex : 0;
   state.pendingPlannedRoundIndex = Number.isInteger(saved.pendingPlannedRoundIndex) ? saved.pendingPlannedRoundIndex : null;
-  state.gameDate         = saved.gameDate        || new Date().toISOString().slice(0, 10);
+  state.gameDate         = saved.gameDate        || localDateString();
   state.gamePlan         = saved.gamePlan        ?? null;
 
   showScreen('game-screen');
@@ -191,7 +191,7 @@ export function checkForActiveGame() {
 
 export function buildGameRecord() {
   const gameRecord = {
-    date:       state.gameDate || new Date().toISOString().slice(0, 10),
+    date:       state.gameDate || localDateString(),
     opponent:   state.opponentName,
     ourScore:   state.scoreUs,
     theirScore: state.scoreThem,

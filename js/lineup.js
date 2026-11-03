@@ -1,6 +1,6 @@
 import { POSITIONS, POSITION_ORDER, state } from './state.js';
 import { avatarHtml, avatarParts, checkedPlayers, renderGameDayCheckboxes } from './roster.js';
-import { closeModal, escHtml, fmt, openModal, shortDisplayName, showScreen } from './utils.js';
+import { closeModal, escHtml, fmt, localDateString, openModal, shortDisplayName, showScreen } from './utils.js';
 import { saveGamePlan } from './persistence.js';
 import {
   deriveSubRound,
@@ -46,7 +46,7 @@ export function goToLineup() {
 
   state.teamName = document.getElementById('team-name-input').value.trim() || 'My Team';
   state.opponentName = document.getElementById('opponent-input').value.trim();
-  state.gameDate = document.getElementById('game-date-input').value || new Date().toISOString().slice(0, 10);
+  state.gameDate = document.getElementById('game-date-input').value || localDateString();
   state.scoreUs = 0;
   state.scoreThem = 0;
   state.goals = [];
@@ -124,7 +124,7 @@ export function goToPlanAhead() {
 
   state.teamName = document.getElementById('team-name-input').value.trim() || 'My Team';
   state.opponentName = document.getElementById('opponent-input').value.trim();
-  state.gameDate = document.getElementById('game-date-input').value || new Date().toISOString().slice(0, 10);
+  state.gameDate = document.getElementById('game-date-input').value || localDateString();
 
   state.savedChecked = new Set(present.map(p => p.id));
   state.isPrePlanning = true;

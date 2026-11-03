@@ -28,6 +28,32 @@ async function planFourQuarters(page, playerId) {
   }
 }
 
+test('local date helper does not roll an Eastern evening into tomorrow', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:8000',
+    timezoneId: 'America/New_York',
+  });
+  const localPage = await context.newPage();
+
+  try {
+    await localPage.goto('/');
+    const result = await localPage.evaluate(async () => {
+      const { localDateString } = await import('/js/utils.js');
+      return {
+        type: typeof localDateString,
+        value: typeof localDateString === 'function'
+          ? localDateString(new Date('2026-11-04T01:30:00Z'))
+          : null,
+      };
+    });
+
+    expect(result.type).toBe('function');
+    expect(result.value).toBe('2026-11-03');
+  } finally {
+    await context.close();
+  }
+});
+
 test('team setup opens and roster can be added', async ({ page }) => {
   await page.getByRole('button', { name: /Set Up My Team/i }).click();
 

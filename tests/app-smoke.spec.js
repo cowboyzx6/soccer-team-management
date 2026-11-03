@@ -1100,6 +1100,52 @@ test('startup normalizes valid entries while dropping invalid stored entries', a
   }]);
 });
 
+test('startup drops non-record history entries without consuming planned games', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+    localStorage.setItem('soccerGameHistory', JSON.stringify([
+      [],
+      {},
+      {
+        date: '2026-05-09',
+        opponent: 'Blue Team',
+        ourScore: 2,
+        theirScore: 1,
+        goals: [],
+        playerStats: [{ id: 1, name: 'Avery', secondsPlayed: 600, positionSeconds: { GK: 600 } }],
+      },
+    ]));
+    localStorage.setItem('soccerGamePlan', JSON.stringify({
+      gameNumber: 2,
+      playerIds: [1],
+      half1: { GK: 1 },
+      half2: { GK: 1 },
+    }));
+  });
+
+  await page.reload();
+
+  const stateResult = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return {
+      historyLength: state.gameHistory.length,
+      opponent: state.gameHistory[0]?.opponent,
+      gamePlanNumber: state.gamePlan?.gameNumber ?? null,
+    };
+  });
+  expect(stateResult).toEqual({
+    historyLength: 1,
+    opponent: 'Blue Team',
+    gamePlanNumber: 2,
+  });
+
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#review-season-btn').click();
+  await expect(page.locator('#season-meta')).toHaveText('1 game · 1 player');
+  await expect(page.locator('#season-wins')).toHaveText('1');
+  await expect(page.locator('#season-draws')).toHaveText('0');
+});
+
 test('league CSV import skips duplicate names within the file', async ({ page }, testInfo) => {
   const csvPath = testInfo.outputPath('league-roster.csv');
   await fs.writeFile(csvPath, [

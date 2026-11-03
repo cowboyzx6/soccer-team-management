@@ -111,6 +111,15 @@ export function loadGamePlan() {
   saveGamePlan();
 }
 
+const GAME_RECORD_KEYS = ['date', 'opponent', 'ourScore', 'theirScore', 'goals', 'playerStats', 'plannedLineups'];
+
+function isStoredGameRecord(value) {
+  return !!value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && GAME_RECORD_KEYS.some(key => Object.prototype.hasOwnProperty.call(value, key));
+}
+
 export function loadGameHistory() {
   state.gameHistory = [];
   const raw = localStorage.getItem('soccerGameHistory');
@@ -118,7 +127,7 @@ export function loadGameHistory() {
     try {
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) throw new Error('Stored game history must be an array.');
-      state.gameHistory = normalizeProfile({ games: parsed }).games;
+      state.gameHistory = normalizeProfile({ games: parsed.filter(isStoredGameRecord) }).games;
     } catch {
       state.gameHistory = [];
       localStorage.removeItem('soccerGameHistory');

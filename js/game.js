@@ -885,8 +885,10 @@ export function startSecondHalf(usePlannedLineup = false) {
   } else {
     // Default: continue with whoever was the 2nd-half goalie pick; everyone
     // else stays benched until the coach subs them in live.
-    const secondHalfGoalieId = state.goalie2Id || state.goalie1Id;
-    const secondHalfGoalie = state.players.find(p => p.id === secondHalfGoalieId);
+    const goalieCandidates = [...new Set([state.goalie2Id, state.goalie1Id].filter(id => id != null))];
+    const secondHalfGoalie = goalieCandidates
+      .map(id => state.players.find(p => p.id === id && !p.leftEarly))
+      .find(Boolean) || null;
     if (secondHalfGoalie) {
       secondHalfGoalie.onField    = true;
       secondHalfGoalie.subInAt    = state.totalElapsed;

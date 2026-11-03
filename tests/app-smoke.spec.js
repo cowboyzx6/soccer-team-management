@@ -1074,6 +1074,61 @@ test('halftime lineup can be edited before the 2nd half starts', async ({ page }
   });
 });
 
+async function startSecondHalfWithRemovedGoalies(page, removedIds) {
+  return page.evaluate(async ids => {
+    const [{ state }, { startSecondHalf }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/game.js'),
+    ]);
+    const mk = (id, name, position) => ({
+      id,
+      name,
+      onField: !!position,
+      totalPlayed: 0,
+      subInAt: position ? 0 : null,
+      h1Snapshot: null,
+      position: position || null,
+      positionTime: {},
+      positionStart: position ? 0 : null,
+      benchSince: position ? null : 0,
+      leftEarly: ids.includes(id),
+    });
+
+    state.halfMinutes = 25;
+    state.totalElapsed = 1500;
+    state.halfClock = 0;
+    state.currentHalf = 1;
+    state.players = [mk(1, 'Avery', 'GK'), mk(2, 'Blake')];
+    state.goalie1Id = 1;
+    state.goalie2Id = 2;
+    state.activeGoalieId = 1;
+    state.gamePlan = null;
+    startSecondHalf(false);
+
+    return {
+      activeGoalieId: state.activeGoalieId,
+      onField: state.players.filter(player => player.onField).map(player => [player.id, player.position]),
+      removedOnField: state.players.filter(player => player.leftEarly && player.onField).map(player => player.id),
+    };
+  }, removedIds);
+}
+
+test('halftime falls back when the second-half goalie has left', async ({ page }) => {
+  const result = await startSecondHalfWithRemovedGoalies(page, [2]);
+
+  expect(result.activeGoalieId).toBe(1);
+  expect(result.onField).toEqual([[1, 'GK']]);
+  expect(result.removedOnField).toEqual([]);
+});
+
+test('halftime leaves GK empty when every selected goalie has left', async ({ page }) => {
+  const result = await startSecondHalfWithRemovedGoalies(page, [1, 2]);
+
+  expect(result.activeGoalieId).toBeNull();
+  expect(result.onField).toEqual([]);
+  expect(result.removedOnField).toEqual([]);
+});
+
 // ---------- Live-game substitution helpers ----------
 async function startLiveGame(page) {
   await page.evaluate(async () => {

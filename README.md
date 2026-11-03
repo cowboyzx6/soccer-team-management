@@ -214,6 +214,14 @@ The Playwright suite uses `tests/global-setup.cjs` and `tests/global-teardown.cj
 
 The test browser blocks service workers through Playwright config, and `tests/app-smoke.spec.js` also sets `window.__STM_DISABLE_SW__` before app code runs. This keeps the PWA service worker from affecting smoke-test page reloads while leaving normal browser behavior unchanged.
 
+Before the first test run, install Playwright's Chromium browser:
+
+```powershell
+npm.cmd run test:install
+```
+
+Browser installation is intentionally not a `pretest` hook, so routine test runs do not repeat the download check.
+
 ```bash
 npm test
 ```

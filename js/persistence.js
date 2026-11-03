@@ -112,10 +112,17 @@ export function loadGamePlan() {
 }
 
 export function loadGameHistory() {
+  state.gameHistory = [];
   const raw = localStorage.getItem('soccerGameHistory');
   if (raw) {
-    try { state.gameHistory = JSON.parse(raw); }
-    catch { localStorage.removeItem('soccerGameHistory'); }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) throw new Error('Stored game history must be an array.');
+      state.gameHistory = normalizeProfile({ games: parsed }).games;
+    } catch {
+      state.gameHistory = [];
+      localStorage.removeItem('soccerGameHistory');
+    }
   }
 }
 
@@ -519,12 +526,21 @@ export function initEventListeners() {
 }
 
 export function loadRoster() {
+  state.roster = [];
+  state.nextId = 1;
   const saved = localStorage.getItem('soccerRoster');
   if (saved) {
     try {
-      state.roster = JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) throw new Error('Stored roster must be an array.');
+      const profile = normalizeProfile({ roster: parsed });
+      state.roster = (profile.roster || []).map(({ id, name }) => ({ id, name }));
       state.nextId  = state.roster.length ? Math.max(...state.roster.map(p => p.id)) + 1 : 1;
-    } catch { localStorage.removeItem('soccerRoster'); }
+    } catch {
+      state.roster = [];
+      state.nextId = 1;
+      localStorage.removeItem('soccerRoster');
+    }
   }
 }
 

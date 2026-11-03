@@ -948,6 +948,93 @@ test('clear all data resets storage runtime plans settings and controls', async 
   await expect(page.locator('#opponent-input')).toHaveValue('');
 });
 
+test('startup discards wrong-shaped stored roster and history', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify({ id: 1, name: 'Not an array' }));
+    localStorage.setItem('soccerGameHistory', JSON.stringify(null));
+  });
+
+  await page.reload();
+
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return {
+      roster: state.roster,
+      history: state.gameHistory,
+      nextId: state.nextId,
+      storedRoster: localStorage.getItem('soccerRoster'),
+      storedHistory: localStorage.getItem('soccerGameHistory'),
+    };
+  });
+  expect(result).toEqual({
+    roster: [],
+    history: [],
+    nextId: 1,
+    storedRoster: null,
+    storedHistory: null,
+  });
+});
+
+test('startup normalizes valid entries while dropping invalid stored entries', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 3, name: '  Avery   Smith  ' },
+      { id: 0, name: 'Invalid Id' },
+      { id: 3, name: 'Duplicate Id' },
+      { id: 4, name: '' },
+      null,
+    ]));
+    localStorage.setItem('soccerGameHistory', JSON.stringify([
+      {
+        date: '2026-05-09',
+        opponent: '  Blue   Team  ',
+        ourScore: '2',
+        theirScore: -1,
+        goals: [
+          { team: 'us', scorer: '  Avery   Smith ', scorerId: 3, half: 1 },
+          { team: 'invalid', scorer: 'Nobody' },
+        ],
+        playerStats: [
+          { id: 3, name: ' Avery Smith ', secondsPlayed: '600', positionSeconds: { CF: 600, BAD: 10 } },
+          { id: 0, name: 'Invalid', secondsPlayed: 20 },
+        ],
+      },
+      null,
+      'invalid',
+    ]));
+  });
+
+  await page.reload();
+
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return {
+      roster: state.roster,
+      history: state.gameHistory,
+      nextId: state.nextId,
+    };
+  });
+  expect(result.roster).toEqual([{ id: 3, name: 'Avery Smith' }]);
+  expect(result.nextId).toBe(4);
+  expect(result.history).toEqual([{
+    date: '2026-05-09',
+    opponent: 'Blue Team',
+    ourScore: 2,
+    theirScore: 0,
+    goals: [{ team: 'us', scorer: 'Avery Smith', scorerId: 3, half: 1 }],
+    playerStats: [{
+      id: 3,
+      name: 'Avery Smith',
+      minutesPlayed: 10,
+      secondsPlayed: 600,
+      firstHalfSeconds: 600,
+      secondHalfSeconds: 0,
+      positionSeconds: { CF: 600 },
+      positionMinutes: { CF: 10 },
+    }],
+  }]);
+});
+
 test('league CSV import skips duplicate names within the file', async ({ page }, testInfo) => {
   const csvPath = testInfo.outputPath('league-roster.csv');
   await fs.writeFile(csvPath, [

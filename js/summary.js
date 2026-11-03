@@ -185,7 +185,7 @@ export function showSeasonSummary() {
     });
   });
 
-  const seasonPlayers = Object.values(playerMap);
+  const seasonPlayers = [...new Set(Object.values(playerMap))];
   const sorted  = seasonPlayers.sort(compareSeasonPlayers);
   const maxSecs = seasonPlayers.length ? Math.max(...seasonPlayers.map(p => p.seconds)) : 1;
 
@@ -196,7 +196,7 @@ export function showSeasonSummary() {
   document.getElementById('season-gf').textContent        = gf;
   document.getElementById('season-ga').textContent        = ga;
   document.getElementById('season-meta').textContent      =
-    `${state.gameHistory.length} game${state.gameHistory.length !== 1 ? 's' : ''} \u00B7 ${sorted.length} players`;
+    `${state.gameHistory.length} game${state.gameHistory.length !== 1 ? 's' : ''} \u00B7 ${sorted.length} player${sorted.length !== 1 ? 's' : ''}`;
 
   updateSeasonSortHeaders();
 

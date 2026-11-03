@@ -1039,6 +1039,42 @@ test('season review includes roster players with no recorded appearances', async
   await expect(page.locator('#season-body')).toContainText('Blair');
 });
 
+test('season summary merges a re-added same-name player into one row', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 2, name: 'Avery' }]));
+    localStorage.setItem('soccerGameHistory', JSON.stringify([
+      {
+        date: '2026-05-02',
+        opponent: 'Blue Team',
+        ourScore: 1,
+        theirScore: 0,
+        goals: [{ team: 'us', scorer: 'Avery', scorerId: 1, half: 1 }],
+        playerStats: [{ id: 1, name: 'Avery', secondsPlayed: 600, positionSeconds: { CF: 600 } }],
+      },
+      {
+        date: '2026-05-09',
+        opponent: 'Green Team',
+        ourScore: 1,
+        theirScore: 1,
+        goals: [{ team: 'us', scorer: 'Avery', scorerId: 2, half: 2 }],
+        playerStats: [{ id: 2, name: 'Avery', secondsPlayed: 600, positionSeconds: { CF: 600 } }],
+      },
+    ]));
+  });
+
+  await page.reload();
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#review-season-btn').click();
+
+  const rows = page.locator('#season-body tr');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first().locator('td').nth(0)).toContainText('Avery');
+  await expect(rows.first().locator('td').nth(1)).toHaveText('2');
+  await expect(rows.first().locator('td').nth(2)).toContainText('2');
+  await expect(rows.first().locator('td').nth(3)).toContainText('20:00');
+  await expect(page.locator('#season-meta')).toHaveText('2 games · 1 player');
+});
+
 test('ended game does not save a stale active game on reload prompt', async ({ page }) => {
   const stored = await page.evaluate(async () => {
     const [{ state }, { endGame }] = await Promise.all([

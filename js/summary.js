@@ -1,7 +1,7 @@
-import { state } from './state.js';
-import { clearActiveGame, exportProfile, saveGameHistory, promoteNextGamePlan, saveGamePlan, saveRoster, saveSettings } from './persistence.js';
+import { resetState, state } from './state.js';
+import { applySettingsToUi, clearActiveGame, exportProfile, saveGameHistory, promoteNextGamePlan, saveGamePlan, saveRoster, saveSettings } from './persistence.js';
 import { avatarHtml, renderGameDayCheckboxes, renderTeamSetupRoster, updatePlanAheadStatus } from './roster.js';
-import { closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
+import { applyTheme, closeModal, escHtml, fmt, openModal, showScreen } from './utils.js';
 import { APP_VERSION } from './version.js';
 
 
@@ -384,18 +384,10 @@ export function executeStartNewSeason() {
 
 export function executeClearData() {
   localStorage.clear();
-  state.roster       = [];
-  state.nextId       = 1;
-  state.playerPhotos = {};
-  state.teamName     = 'My Team';
-  state.halfMinutes  = 25;
-  state.gameHistory  = [];
+  resetState();
+  applySettingsToUi();
+  applyTheme('dark');
   document.getElementById('team-name-input').value = '';
-  document.getElementById('app-title-name').textContent = 'My Team';
-  document.getElementById('half-minutes-display').textContent = '25 min';
-  state.savedChecked = new Set();
-  state.gameDate     = '';
-  state.opponentName = '';
   document.getElementById('opponent-input').value = '';
   closeClearDataModal();
   renderTeamSetupRoster();

@@ -850,6 +850,104 @@ test('start new season clears roster history and photos but keeps settings', asy
   expect(stored.gamePlan).toBeNull();
 });
 
+test('clear all data resets storage runtime plans settings and controls', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const [{ state }, { applyTheme }, { executeClearData }] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/utils.js'),
+      import('/js/summary.js'),
+    ]);
+
+    Object.assign(state, {
+      roster: [{ id: 9, name: 'Avery' }],
+      players: [{ id: 9, name: 'Avery', onField: true }],
+      totalElapsed: 321,
+      halfClock: 654,
+      currentHalf: 2,
+      isRunning: true,
+      timerBase: { ts: Date.now(), halfClock: 654, totalElapsed: 321 },
+      subPick: { zone: 'bench', id: 9 },
+      subPlans: [{ inId: 9, pos: 'GK' }],
+      benchSort: 'priority',
+      nextId: 10,
+      halfActionIsEnd: true,
+      halfMinutes: 30,
+      minPlayMinutes: 15,
+      goalie1Id: 9,
+      goalie2Id: 9,
+      activeGoalieId: 9,
+      teamName: 'Old Team',
+      opponentName: 'Old Opponent',
+      gameDate: '2026-10-31',
+      scoreUs: 4,
+      scoreThem: 3,
+      goals: [{ scorer: 'Avery', scorerId: 9, half: 2, team: 'us' }],
+      gameHistory: [{ date: '2026-10-31' }],
+      selectedLineupSlot: 'GK',
+      selectedLineupPlayer: 9,
+      lineupDraft: [{ id: 9 }],
+      savedChecked: new Set([9]),
+      playerPhotos: { 9: 'data:image/png;base64,abc=' },
+      gameFinalized: true,
+      gamePlan: { gameNumber: 2, half1: { GK: 9 } },
+      queuedPlans: [{ gameNumber: 3, half1: { GK: 9 } }],
+      planOffset: 1,
+      isPrePlanning: true,
+      prePlanQuarter: 4,
+      isHalftimeEdit: true,
+      plannedSubRoundIndex: 2,
+      pendingPlannedRoundIndex: 1,
+    });
+    localStorage.setItem('theme', 'light');
+    localStorage.setItem('soccerRoster', 'stale');
+    localStorage.setItem('soccerGameHistory', 'stale');
+    localStorage.setItem('soccerActiveGame', 'stale');
+    localStorage.setItem('soccerGamePlan', 'stale');
+    localStorage.setItem('soccerQueuedPlans', 'stale');
+    localStorage.setItem('playerPhotos', 'stale');
+    applyTheme('light');
+
+    executeClearData();
+
+    return {
+      storageLength: localStorage.length,
+      roster: state.roster,
+      players: state.players,
+      elapsed: [state.totalElapsed, state.halfClock, state.currentHalf],
+      timer: [state.isRunning, state.timerBase],
+      subs: [state.subPick, state.subPlans, state.plannedSubRoundIndex, state.pendingPlannedRoundIndex],
+      settings: [state.teamName, state.halfMinutes, state.minPlayMinutes],
+      score: [state.scoreUs, state.scoreThem, state.goals],
+      plans: [state.gamePlan, state.queuedPlans, state.planOffset],
+      attendance: [...state.savedChecked],
+      photos: state.playerPhotos,
+      finalized: state.gameFinalized,
+      theme: document.documentElement.getAttribute('data-theme'),
+    };
+  });
+
+  expect(result).toEqual({
+    storageLength: 0,
+    roster: [],
+    players: [],
+    elapsed: [0, 0, 1],
+    timer: [false, null],
+    subs: [null, [], 0, null],
+    settings: ['My Team', 25, 0],
+    score: [0, 0, []],
+    plans: [null, [], 0],
+    attendance: [],
+    photos: {},
+    finalized: false,
+    theme: null,
+  });
+  await expect(page.locator('#team-name-input')).toHaveValue('');
+  await expect(page.locator('#app-title-name')).toHaveText('My Team');
+  await expect(page.locator('#half-minutes-display')).toHaveText('25 min');
+  await expect(page.locator('#min-play-display')).toHaveText('off');
+  await expect(page.locator('#opponent-input')).toHaveValue('');
+});
+
 test('league CSV import skips duplicate names within the file', async ({ page }, testInfo) => {
   const csvPath = testInfo.outputPath('league-roster.csv');
   await fs.writeFile(csvPath, [

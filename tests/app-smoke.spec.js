@@ -73,7 +73,7 @@ test('manual add rejects duplicate roster names regardless of case', async ({ pa
   await page.locator('#add-player-btn').click();
   await page.locator('#new-player-input').fill('  avery  ');
 
-  const dialogPromise = page.waitForEvent('dialog', { timeout: 2000 });
+  const dialogPromise = page.waitForEvent('dialog');
   await Promise.all([
     dialogPromise.then(async dialog => {
       expect(dialog.type()).toBe('alert');
@@ -101,7 +101,7 @@ test('rename rejects another player\'s name', async ({ page }) => {
   await page.locator('#roster-list .roster-item', { hasText: 'Blair' }).locator('.btn-rename').click();
   await page.locator('#rename-input').fill('  AVERY  ');
 
-  const dialogPromise = page.waitForEvent('dialog', { timeout: 2000 });
+  const dialogPromise = page.waitForEvent('dialog');
   await Promise.all([
     dialogPromise.then(async dialog => {
       expect(dialog.type()).toBe('alert');

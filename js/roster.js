@@ -325,10 +325,19 @@ export function switchPlanOffset(offset) {
   renderGameDayCheckboxes(true);
 }
 
+function rosterNameExists(name, excludeId = null) {
+  const key = name.trim().toLowerCase();
+  return state.roster.some(player => player.id !== excludeId && player.name.trim().toLowerCase() === key);
+}
+
 export function addRosterPlayer() {
   const input = document.getElementById('new-player-input');
   const raw  = input.value.trim();
   if (!raw) return;
+  if (rosterNameExists(raw)) {
+    alert('A player with that name is already on the roster.');
+    return;
+  }
   const name = raw.replace(/\b\w/g, c => c.toUpperCase());
   state.roster.push({ id: state.nextId++, name });
   saveRoster();
@@ -353,6 +362,10 @@ export function openRenameModal(id) {
 export function confirmRename() {
   const raw = document.getElementById('rename-input').value.trim();
   if (!raw || renameTargetId === null) return;
+  if (rosterNameExists(raw, renameTargetId)) {
+    alert('A player with that name is already on the roster.');
+    return;
+  }
   const player = state.roster.find(p => p.id === renameTargetId);
   if (player) {
     player.name = raw.replace(/\b\w/g, c => c.toUpperCase());

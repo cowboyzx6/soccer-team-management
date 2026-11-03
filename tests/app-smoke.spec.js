@@ -67,6 +67,71 @@ test('team setup opens and roster can be added', async ({ page }) => {
   await expect(page.locator('#app-title-name')).toHaveText('Oyster Blueberries');
 });
 
+test('manual add rejects duplicate roster names regardless of case', async ({ page }) => {
+  await page.getByRole('button', { name: /Set Up My Team/i }).click();
+  await page.locator('#new-player-input').fill('Avery');
+  await page.locator('#add-player-btn').click();
+  await page.locator('#new-player-input').fill('  avery  ');
+
+  const dialogPromise = page.waitForEvent('dialog', { timeout: 2000 });
+  await Promise.all([
+    dialogPromise.then(async dialog => {
+      expect(dialog.type()).toBe('alert');
+      expect(dialog.message()).toMatch(/already on the roster/i);
+      await dialog.accept();
+    }),
+    page.locator('#add-player-btn').click(),
+  ]);
+
+  await expect(page.locator('#roster-list .roster-item')).toHaveCount(1);
+  const names = await page.evaluate(() => JSON.parse(localStorage.getItem('soccerRoster') || '[]').map(p => p.name));
+  expect(names).toEqual(['Avery']);
+});
+
+test('rename rejects another player\'s name', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([
+      { id: 1, name: 'Avery' },
+      { id: 2, name: 'Blair' },
+    ]));
+  });
+  await page.reload();
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  await page.locator('#roster-list .roster-item', { hasText: 'Blair' }).locator('.btn-rename').click();
+  await page.locator('#rename-input').fill('  AVERY  ');
+
+  const dialogPromise = page.waitForEvent('dialog', { timeout: 2000 });
+  await Promise.all([
+    dialogPromise.then(async dialog => {
+      expect(dialog.type()).toBe('alert');
+      expect(dialog.message()).toMatch(/already on the roster/i);
+      await dialog.accept();
+    }),
+    page.locator('#rename-confirm-btn').click(),
+  ]);
+
+  const names = await page.evaluate(() => JSON.parse(localStorage.getItem('soccerRoster') || '[]').map(p => p.name));
+  expect(names).toEqual(['Avery', 'Blair']);
+});
+
+test('rename allows the player\'s unchanged effective name', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('soccerRoster', JSON.stringify([{ id: 1, name: 'Avery' }]));
+  });
+  await page.reload();
+  await page.locator('#overflow-menu-btn').click();
+  await page.locator('#team-settings-btn').click();
+  await page.locator('#roster-list .roster-item', { hasText: 'Avery' }).locator('.btn-rename').click();
+  await page.locator('#rename-input').fill('  Avery  ');
+  await page.locator('#rename-confirm-btn').click();
+
+  await expect(page.locator('#rename-modal')).toHaveClass(/hidden/);
+  await expect(page.locator('#roster-list .roster-item')).toHaveCount(1);
+  const names = await page.evaluate(() => JSON.parse(localStorage.getItem('soccerRoster') || '[]').map(p => p.name));
+  expect(names).toEqual(['Avery']);
+});
+
 test('player photo upload opens a crop preview before saving', async ({ page }, testInfo) => {
   const photoPath = testInfo.outputPath('player-photo.png');
   const replacementPhotoPath = testInfo.outputPath('replacement-player-photo.svg');

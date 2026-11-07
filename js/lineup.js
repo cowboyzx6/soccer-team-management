@@ -385,13 +385,16 @@ export function goBackFromLineup() {
 // While pre-planning, the pitch moves into the right column (above the
 // player cards) and the projected-minutes table + Finish Plan button move
 // into the left column, so the pitch gets a full-height column instead of
-// being squeezed above the minutes table. Live gameplay and halftime
-// editing never set isPrePlanning, so they keep the default arrangement.
-// A no-op guard keeps this cheap to call on every render.
+// being squeezed above the minutes table. The header line is hidden (the
+// quarter tabs already say which quarter is being planned) and the Back
+// button moves into that tab row instead, freeing another line of height.
+// Live gameplay and halftime editing never set isPrePlanning, so they keep
+// the default arrangement. A no-op guard keeps this cheap on every render.
 function syncLineupPlanningLayout() {
+  const screen = document.getElementById('lineup-screen');
   const layout = document.querySelector('.lineup-layout');
   const want = !!state.isPrePlanning;
-  if (layout.classList.contains('pre-planning') === want) return;
+  if (screen.classList.contains('pre-planning') === want) return;
 
   const col1 = document.getElementById('lineup-col-1');
   const col2 = document.getElementById('lineup-col-2');
@@ -399,14 +402,20 @@ function syncLineupPlanningLayout() {
   const projection = document.getElementById('lineup-projection');
   const playersList = document.getElementById('lineup-players-list-block');
   const actions = document.getElementById('lineup-actions-block');
+  const backBtn = document.getElementById('lineup-back-btn');
+  const tabsWrap = document.getElementById('lineup-quarter-tabs');
+  const header = document.querySelector('.lineup-header');
 
   if (want) {
     col1.append(projection, actions);
     col2.append(pitch, playersList);
+    tabsWrap.append(backBtn);
   } else {
     col1.append(pitch, projection);
     col2.append(playersList, actions);
+    header.append(backBtn);
   }
+  screen.classList.toggle('pre-planning', want);
   layout.classList.toggle('pre-planning', want);
 }
 

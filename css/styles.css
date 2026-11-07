@@ -1067,13 +1067,25 @@
       flex: 1;
     }
 
+    /* While pre-planning, the header line (team name + "Plan Qx" title) is
+       hidden as redundant with these tabs, and the Back button relocates
+       here (appended after Q4 in the DOM) to reclaim that line of height. */
+    #lineup-screen.pre-planning .lineup-header {
+      display: none;
+    }
+
     .lineup-quarter-tabs {
       display: flex;
+      align-items: center;
       gap: 6px;
       padding: 8px 14px;
       background: var(--bg-deep);
       border-bottom: 2px solid var(--accent-dark);
       flex-shrink: 0;
+    }
+    .lineup-quarter-tabs #lineup-back-btn {
+      flex: 0 0 auto;
+      margin-left: 4px;
     }
     .lineup-quarter-tab {
       flex: 1;

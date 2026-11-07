@@ -419,6 +419,12 @@ function renderProjection() {
   const quarterSeconds = state.halfMinutes * 60 / 2;
   const quarters = plannedQuarters();
   const totals = projectedSecondsByQuarter(quarters, quarterSeconds, [...state.savedChecked]);
+
+  [1, 2, 3, 4].forEach(q => {
+    const quarter = quarters.find(({ q: quarterNum }) => quarterNum === q);
+    const count = quarter ? Object.keys(quarter.lineup).length : 0;
+    document.getElementById(`lineup-projection-q${q}-header`).textContent = `Q${q} (${count})`;
+  });
   const goalieBadge = (id, quarter) => quarters.some(q => q.q === quarter && q.lineup.GK === id)
     ? ' <span class="gk-badge" title="Planned goalkeeper this quarter">GK</span>' : '';
   const names = new Map(state.lineupDraft.map(p => [p.id, p.name]));

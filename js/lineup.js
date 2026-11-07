@@ -388,13 +388,18 @@ function plannedQuarters() {
   const quarters = [];
   [1, 2].forEach(half => {
     const startQ = half * 2 - 1;
-    const base = current === startQ ? draft : plan && plan[`half${half}`];
+    const savedBase = plan && plan[`half${half}`];
+    const base = current === startQ ? draft : savedBase;
     if (!base) return;
     quarters.push({ q: startQ, half, lineup: base });
     quarters.push({
       q: startQ + 1,
       half,
-      lineup: current === startQ + 1 ? draft : effectiveLineupAt(base, (plan && plan[`half${half}Subs`]) || [], 1),
+      // The mid-half quarter's lineup is always derived from the half's last
+      // SAVED starting lineup, never the in-progress draft of the other
+      // quarter being edited right now — otherwise an unsaved edit to Q1/Q3
+      // would leak into the Q2/Q4 projection before it's actually decided.
+      lineup: current === startQ + 1 ? draft : effectiveLineupAt(savedBase || draft, (plan && plan[`half${half}Subs`]) || [], 1),
     });
   });
   const through = Math.max(current, lastPlannedQuarter(plan));

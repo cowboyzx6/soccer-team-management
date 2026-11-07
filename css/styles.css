@@ -1100,21 +1100,59 @@
       overflow: hidden;
     }
 
-    .lineup-field-panel {
-      flex: 0 0 55%;
+    .lineup-col {
       min-width: 0;
       display: flex;
       flex-direction: column;
+    }
+
+    #lineup-col-1 {
+      flex: 0 0 55%;
       padding: 8px;
       background: var(--bg-field-zone);
       border-right: 2px solid var(--accent-dark);
     }
 
-    .lineup-players-panel {
+    #lineup-col-2 {
       flex: 1;
+      padding: 10px 12px;
+      overflow-y: auto;
+    }
+
+    .lineup-pitch-block {
       display: flex;
       flex-direction: column;
-      padding: 10px 12px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .lineup-players-list-block {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Plan-ahead only (lineup.js moves the blocks: col 1 becomes the
+       projected-minutes + Finish Plan column, col 2 becomes the pitch +
+       player-cards column) so the pitch gets a full-height column instead
+       of being squeezed above the minutes table. */
+    .lineup-layout.pre-planning #lineup-col-1 {
+      flex: 0 0 38%;
+      background: transparent;
+    }
+    .lineup-layout.pre-planning #lineup-col-2 {
+      background: var(--bg-field-zone);
+    }
+    .lineup-layout.pre-planning #lineup-projection {
+      flex: 1;
+      min-height: 0;
+      display: flex !important;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .lineup-layout.pre-planning .lineup-players-list-block {
+      flex: 0 1 220px;
       overflow-y: auto;
     }
 
@@ -1136,20 +1174,25 @@
         flex-direction: column;
         overflow: visible;
       }
-      .lineup-field-panel {
+      .lineup-col {
         flex: none;
         width: 100%;
+      }
+      #lineup-col-1 {
         border-right: none;
         border-bottom: 2px solid var(--accent-dark);
       }
-      .lineup-field-panel .field-diagram {
+      #lineup-col-2 {
+        overflow-y: visible;
+      }
+      .lineup-pitch-block .field-diagram {
         flex: none;
         aspect-ratio: 4 / 3;
         min-height: 260px;
       }
-      .lineup-players-panel {
+      .lineup-layout.pre-planning .lineup-players-list-block {
         flex: none;
-        width: 100%;
+        max-height: none;
         overflow-y: visible;
       }
     }

@@ -382,7 +382,36 @@ export function goBackFromLineup() {
   renderGameDayCheckboxes(true);
 }
 
+// While pre-planning, the pitch moves into the right column (above the
+// player cards) and the projected-minutes table + Finish Plan button move
+// into the left column, so the pitch gets a full-height column instead of
+// being squeezed above the minutes table. Live gameplay and halftime
+// editing never set isPrePlanning, so they keep the default arrangement.
+// A no-op guard keeps this cheap to call on every render.
+function syncLineupPlanningLayout() {
+  const layout = document.querySelector('.lineup-layout');
+  const want = !!state.isPrePlanning;
+  if (layout.classList.contains('pre-planning') === want) return;
+
+  const col1 = document.getElementById('lineup-col-1');
+  const col2 = document.getElementById('lineup-col-2');
+  const pitch = document.getElementById('lineup-pitch-block');
+  const projection = document.getElementById('lineup-projection');
+  const playersList = document.getElementById('lineup-players-list-block');
+  const actions = document.getElementById('lineup-actions-block');
+
+  if (want) {
+    col1.append(projection, actions);
+    col2.append(pitch, playersList);
+  } else {
+    col1.append(pitch, projection);
+    col2.append(playersList, actions);
+  }
+  layout.classList.toggle('pre-planning', want);
+}
+
 export function renderLineup() {
+  syncLineupPlanningLayout();
   renderLineupField();
   renderLineupPlayers();
   updateLineupLaunchBtn();
@@ -516,7 +545,7 @@ export function handleLineupPointerMove(e) {
   if (lineupPointerDrag.overSlot) lineupPointerDrag.overSlot.classList.add('drag-over');
 
   const benchList = document.getElementById('lineup-unassigned-list');
-  const overBench = !overSlot && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('.lineup-players-panel');
+  const overBench = !overSlot && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('.lineup-players-list-block');
   lineupPointerDrag.overBench = overBench;
   benchList?.classList.toggle('drag-over', overBench && !!lineupPointerDrag.startPosition);
 }

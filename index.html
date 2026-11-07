@@ -223,11 +223,18 @@
 
   <div class="lineup-layout">
 
-    <!-- Left: field diagram -->
-    <div class="lineup-field-panel">
-      <div class="lineup-panel-title">Field (3-3-2 + GK) &mdash; tap a slot, then tap a player</div>
-      <div class="field-diagram" id="lineup-field-diagram">
-        <div class="field-positions" id="lineup-field-positions"></div>
+    <!-- Default order: col 1 = pitch + projection, col 2 = players + actions.
+         During plan-ahead, lineup.js moves the blocks below into
+         col 1 = projection + actions, col 2 = pitch + players, so the pitch
+         gets a full-height column instead of being squeezed above the
+         projection table. Live gameplay and halftime editing never trigger
+         that move, so this layout is untouched there. -->
+    <div class="lineup-col" id="lineup-col-1">
+      <div class="lineup-pitch-block" id="lineup-pitch-block">
+        <div class="lineup-panel-title">Field (3-3-2 + GK) &mdash; tap a slot, then tap a player</div>
+        <div class="field-diagram" id="lineup-field-diagram">
+          <div class="field-positions" id="lineup-field-positions"></div>
+        </div>
       </div>
       <div id="lineup-projection" style="display:none;">
         <div class="lineup-panel-title" style="margin-top:12px;">Projected Minutes</div>
@@ -238,12 +245,13 @@
       </div>
     </div>
 
-    <!-- Right: unassigned players + actions -->
-    <div class="lineup-players-panel">
-      <div class="lineup-panel-title">Unassigned Players</div>
-      <div class="lineup-hint" id="lineup-hint">Tap a position slot on the field, then tap a player here to assign them.</div>
-      <div class="lineup-unassigned-list" id="lineup-unassigned-list"></div>
-      <div class="lineup-panel-actions">
+    <div class="lineup-col" id="lineup-col-2">
+      <div class="lineup-players-list-block" id="lineup-players-list-block">
+        <div class="lineup-panel-title">Unassigned Players</div>
+        <div class="lineup-hint" id="lineup-hint">Tap a position slot on the field, then tap a player here to assign them.</div>
+        <div class="lineup-unassigned-list" id="lineup-unassigned-list"></div>
+      </div>
+      <div class="lineup-panel-actions" id="lineup-actions-block">
         <button class="btn btn-green btn-full" id="launch-btn" disabled>
           Start Game &#8594;
         </button>

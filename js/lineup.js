@@ -114,8 +114,34 @@ function showPrePlanQuarter() {
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
   document.getElementById('lineup-header-title').textContent = `${state.teamName} \u2014 Plan ${QUARTER_LABELS[q]}`;
-  document.getElementById('lineup-back-btn').textContent = q === 1 ? '\u2190 Back' : `\u2190 Back to Q${q - 1}`;
+  document.getElementById('lineup-back-btn').textContent = '\u2190 Back';
   renderLineup();
+}
+
+// Jumps directly to quarter q, saving whatever is on screen first (autosave
+// during pre-planning already keeps the draft persisted, but this also
+// covers the quarter being left in case nothing triggered a render yet).
+export function goToPrePlanQuarter(q) {
+  if (!state.isPrePlanning || q === state.prePlanQuarter) return;
+  saveQuarterDraft(state.prePlanQuarter);
+  saveGamePlan();
+  state.prePlanQuarter = q;
+  loadQuarterDraft(q);
+  showPrePlanQuarter();
+}
+
+function renderQuarterTabs() {
+  const wrap = document.getElementById('lineup-quarter-tabs');
+  if (!state.isPrePlanning) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  wrap.querySelectorAll('.lineup-quarter-tab').forEach(btn => {
+    const q = Number(btn.dataset.quarter);
+    btn.classList.toggle('active', q === state.prePlanQuarter);
+    btn.onclick = () => goToPrePlanQuarter(q);
+  });
 }
 
 export function goToPlanAhead() {
@@ -184,26 +210,21 @@ function loadQuarterDraft(q) {
   fillDraftFromMap(q % 2 === 0 ? (saved || quarterLineup(plan, q - 1)) : saved);
 }
 
-// Called by the lineup screen's main button while pre-planning. Saves the
-// current quarter and either advances to the next one or finishes the plan.
-export function advancePrePlan() {
-  const q = state.prePlanQuarter;
-  saveQuarterDraft(q);
+// Called by the lineup screen's main button while pre-planning. Each quarter
+// already autosaves as it's edited (see renderLineup), so this just saves
+// the current quarter one last time and exits the planner — it can be
+// called from any quarter, not only Q4, since the quarter tabs let the
+// coach jump around freely instead of stepping through Q1-Q4 in order.
+export function finishPrePlan() {
+  saveQuarterDraft(state.prePlanQuarter);
   saveGamePlan();
-
-  if (q < 4) {
-    state.prePlanQuarter = q + 1;
-    loadQuarterDraft(q + 1);
-    showPrePlanQuarter();
-  } else {
-    state.isPrePlanning = false;
-    state.prePlanQuarter = null;
-    state.selectedLineupSlot = null;
-    state.selectedLineupPlayer = null;
-    showScreen('setup-screen');
-    renderGameDayCheckboxes(true);
-    document.dispatchEvent(new CustomEvent('gameplan:saved'));
-  }
+  state.isPrePlanning = false;
+  state.prePlanQuarter = null;
+  state.selectedLineupSlot = null;
+  state.selectedLineupPlayer = null;
+  showScreen('setup-screen');
+  renderGameDayCheckboxes(true);
+  document.dispatchEvent(new CustomEvent('gameplan:saved'));
 }
 
 // ------------------------------------------------------------
@@ -262,7 +283,7 @@ function finishHalftimeLineup(start) {
 // Routes the lineup screen's single launch button to the right flow.
 export function handleLaunchClick() {
   if (state.isHalftimeEdit) finishHalftimeLineup(true);
-  else if (state.isPrePlanning) advancePrePlan();
+  else if (state.isPrePlanning) finishPrePlan();
   else launchGame();
 }
 
@@ -346,9 +367,12 @@ export function goBackFromLineup() {
     finishHalftimeLineup(false);
     return;
   }
-  if (state.isPrePlanning && state.prePlanQuarter > 1) {
-    goBackToPrePlanQuarter();
-    return;
+  // While pre-planning, the quarter tabs handle moving between quarters, so
+  // "Back" always exits the planner. Autosave already persists every move,
+  // but save once more here for safety before leaving.
+  if (state.isPrePlanning) {
+    saveQuarterDraft(state.prePlanQuarter);
+    saveGamePlan();
   }
   state.selectedLineupSlot = null;
   state.selectedLineupPlayer = null;
@@ -358,23 +382,19 @@ export function goBackFromLineup() {
   renderGameDayCheckboxes(true);
 }
 
-// While pre-planning, steps back one quarter. The current draft is saved to
-// the plan first so nothing is lost; the previous quarter then reopens from
-// its saved lineup.
-export function goBackToPrePlanQuarter() {
-  const q = state.prePlanQuarter;
-  saveQuarterDraft(q);
-  saveGamePlan();
-  state.prePlanQuarter = q - 1;
-  loadQuarterDraft(q - 1);
-  showPrePlanQuarter();
-}
-
 export function renderLineup() {
   renderLineupField();
   renderLineupPlayers();
   updateLineupLaunchBtn();
   renderProjection();
+  renderQuarterTabs();
+  // Autosave: every player move while pre-planning persists immediately,
+  // rather than only on the old "Save Qx -> Plan Qx+1" button click, so
+  // nothing is lost if the coach navigates away mid-quarter.
+  if (state.isPrePlanning) {
+    saveQuarterDraft(state.prePlanQuarter);
+    saveGamePlan();
+  }
 }
 
 // The four planned quarters as { q, half, lineup }, using the on-screen draft for
@@ -712,7 +732,7 @@ export function updateLineupLaunchBtn() {
   } else if (state.isHalftimeEdit) {
     btn.textContent = 'Start 2nd Half →';
   } else if (state.isPrePlanning) {
-    btn.textContent = state.prePlanQuarter < 4 ? `Save Q${state.prePlanQuarter} \u2192 Plan Q${state.prePlanQuarter + 1}` : 'Save Plan \u2713';
+    btn.textContent = 'Finish Plan \u2713';
   } else {
     btn.textContent = 'Start Game \u2192';
   }

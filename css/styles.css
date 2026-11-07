@@ -1123,7 +1123,7 @@
       display: flex;
       flex-direction: column;
       flex: 1;
-      min-height: 0;
+      min-height: 160px;
     }
 
     .lineup-players-list-block {
@@ -1151,9 +1151,13 @@
       flex-direction: column;
       overflow-y: auto;
     }
+    /* Not flex-grow/shrink: sized to its own content so the unassigned
+       player cards are always fully visible. The pitch above it (flex: 1)
+       gives up height first when space is tight; only once the pitch has
+       hit its own min-height does col 2 itself start scrolling. */
     .lineup-layout.pre-planning .lineup-players-list-block {
-      flex: 0 1 220px;
-      overflow-y: auto;
+      flex: 0 0 auto;
+      min-height: 0;
     }
 
     /* Narrow phones can't fit the field diagram and a 6-column minutes table

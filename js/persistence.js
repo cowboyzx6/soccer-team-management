@@ -268,6 +268,8 @@ export function buildProfile(includeGameRecord) {
     const lineupPlayerIds = [
       ...Object.values(plan.half1 || {}),
       ...Object.values(plan.half2 || {}),
+      ...Object.values(plan.q2 || {}),
+      ...Object.values(plan.q4 || {}),
     ];
     const date = plan.date || (isNext ? state.gameDate : '');
     const opponent = plan.opponent || (isNext ? state.opponentName : '');
@@ -279,6 +281,8 @@ export function buildProfile(includeGameRecord) {
       playerIds: [...new Set([...(plan.playerIds || []), ...lineupPlayerIds])],
       ...(plan.half1 ? { half1: { ...plan.half1 } } : {}),
       ...(plan.half2 ? { half2: { ...plan.half2 } } : {}),
+      ...(plan.q2 ? { q2: { ...plan.q2 } } : {}),
+      ...(plan.q4 ? { q4: { ...plan.q4 } } : {}),
       ...(plan.half1Subs && plan.half1Subs.length ? { half1Subs: plan.half1Subs } : {}),
       ...(plan.half2Subs && plan.half2Subs.length ? { half2Subs: plan.half2Subs } : {}),
     };

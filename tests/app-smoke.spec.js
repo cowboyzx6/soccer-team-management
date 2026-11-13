@@ -16,14 +16,11 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-// Walks the four planning quarters with one player in goal: Q1 and Q3 start from
-// an empty field, Q2 and Q4 open pre-filled from the quarter before them.
+// Walks the four planning quarters with one player in goal.
 async function planFourQuarters(page, playerId) {
   for (const quarter of [1, 2, 3, 4]) {
-    if (quarter % 2) {
-      await page.locator('#lineup-field-positions [data-position="GK"]').click();
-      await page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${playerId}"]`).click();
-    }
+    await page.locator('#lineup-field-positions [data-position="GK"]').click();
+    await page.locator(`#lineup-unassigned-list .lineup-player[data-player-id="${playerId}"]`).click();
     if (quarter < 4) {
       await page.locator(`.lineup-quarter-tab[data-quarter="${quarter + 1}"]`).click();
     } else {
@@ -300,29 +297,31 @@ test('planning four quarters saves mid-half lineups as the planned sub round', a
   await slot('CF').click(); await bench(2).click();
   await quarterTab(2).click();
 
-  // Q2 opens pre-filled from Q1; swap the two players.
+  // Q2 starts empty. Assign the same players to different positions.
   await expect(page.locator('#lineup-header-title')).toContainText('Q2');
-  await expect(slot('GK')).toContainText('Avery');
-  await expect(slot('CF')).toContainText('Blake');
-  await slot('GK').click(); await slot('CF').click();
+  await expect(bench(1)).toBeVisible();
+  await expect(bench(2)).toBeVisible();
   await slot('GK').click(); await bench(2).click();
   await slot('CF').click(); await bench(1).click();
   await expect(slot('GK')).toContainText('Blake');
   await quarterTab(3).click();
 
-  // Q3 starts empty; assign Blake in goal. Q4 pre-fills from Q3 and is left as is.
+  // Q3 and Q4 each start empty.
   await expect(page.locator('#lineup-header-title')).toContainText('Q3');
   await expect(slot('GK')).not.toContainText('Avery');
   await slot('GK').click(); await bench(2).click();
   await quarterTab(4).click();
   await expect(page.locator('#lineup-header-title')).toContainText('Q4');
-  await expect(slot('GK')).toContainText('Blake');
+  await expect(bench(2)).toBeVisible();
+  await slot('GK').click(); await bench(2).click();
   await page.locator('#launch-btn').click();
 
   await expect(page.locator('#setup-screen')).toHaveClass(/active/);
   const plan = await page.evaluate(async () => (await import('/js/state.js')).state.gamePlan);
   expect(plan.half1).toEqual({ GK: 1, CF: 2 });
   expect(plan.half2).toEqual({ GK: 2 });
+  expect(plan.q2).toEqual({ GK: 2, CF: 1 });
+  expect(plan.q4).toEqual({ GK: 2 });
   // A position swap between players already on the field is not a sub round.
   expect(plan.half1Subs).toBeUndefined();
   expect(plan.half2Subs).toBeUndefined();
@@ -345,7 +344,6 @@ test('going back through the planning quarters keeps each quarter and only chang
   // Q1: Avery in goal only. Q2: Blake replaces Avery in goal (a sub round).
   await slot('GK').click(); await bench(1).click();
   await quarterTab(2).click();
-  await slot('GK').click();
   await slot('GK').click(); await bench(2).click();
   await quarterTab(3).click();
   await expect(page.locator('#lineup-header-title')).toContainText('Q3');
@@ -394,7 +392,6 @@ test('planning shows projected minutes per player that update as quarters change
 
   // Q2: Blake replaces Avery, so each plays half of Half 1.
   await quarterTab(2).click();
-  await slot('GK').click();
   await slot('GK').click(); await bench(2).click();
   await expect(row(1).locator('td').nth(1)).toContainText('12:30');
   await expect(row(2).locator('td').nth(1)).toHaveText('00:00');
@@ -436,9 +433,11 @@ test('planning shows projected minutes per player that update as quarters change
   await quarterTab(3).click();
   await expect(row(1).locator('td').nth(3)).toContainText('12:30');
 
-  // Reaching Q4 adds its prefilled lineup; navigating away and back retains it.
+  // Q4 only counts after an explicit assignment, which survives changing tabs.
   await quarterTab(4).click();
   await expect(row(1).locator('td').nth(3)).toContainText('12:30');
+  await expect(row(1).locator('td').nth(4)).toHaveText('00:00');
+  await slot('GK').click(); await bench(1).click();
   await expect(row(1).locator('td').nth(4)).toContainText('12:30');
   await expect(row(1).locator('td').nth(4).locator('.gk-badge')).toHaveCount(1);
   await expect(row(1).locator('td').nth(5)).toContainText('37:30');
@@ -470,9 +469,8 @@ test('while planning, bench and pitch players show their other assigned quarters
   await expect(slot('GK').locator('.lineup-half-badge')).toHaveCount(0);
   await slot('CF').click(); await card(2).click();
   await quarterTab(2).click();
+  await slot('GK').click(); await card(1).click();
   await expect(slot('GK').locator('.lineup-half-badge')).toHaveText('Q1');
-  await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1');
-  await slot('CF').click();
   await slot('CF').click(); await card(3).click();
   await quarterTab(3).click();
 
@@ -486,6 +484,8 @@ test('while planning, bench and pitch players show their other assigned quarters
   await slot('CF').click(); await card(2).click();
   await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1');
   await quarterTab(4).click();
+  await slot('GK').click(); await card(1).click();
+  await slot('CF').click(); await card(2).click();
   await expect(slot('GK').locator('.lineup-half-badge')).toHaveText('Q1, Q2, Q3');
   await expect(slot('CF').locator('.lineup-half-badge')).toHaveText('Q1, Q3');
   // Returning a player to the bench preserves the same quarter badge.
@@ -802,6 +802,8 @@ test('one-player planning backup includes attendance opponent and date', async (
     playerIds: [1],
     half1: { GK: 1 },
     half2: { GK: 1 },
+    q2: { GK: 1 },
+    q4: { GK: 1 },
   });
 });
 

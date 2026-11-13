@@ -87,10 +87,14 @@ function normalizePlannedLineups(value, validPlayerIds = null) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const half1 = normalizeLineupMap(value.half1, validPlayerIds);
   const half2 = normalizeLineupMap(value.half2, validPlayerIds);
-  if (!half1 && !half2) return null;
+  const q2 = value.q2 ? normalizeLineupMap(value.q2, validPlayerIds) || {} : null;
+  const q4 = value.q4 ? normalizeLineupMap(value.q4, validPlayerIds) || {} : null;
+  if (![half1, q2, half2, q4].some(lineup => Object.keys(lineup || {}).length)) return null;
   return {
     ...(half1 ? { half1 } : {}),
     ...(half2 ? { half2 } : {}),
+    ...(q2 ? { q2 } : {}),
+    ...(q4 ? { q4 } : {}),
   };
 }
 

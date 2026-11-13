@@ -36,9 +36,8 @@ export function ensureActivePlan() {
 // ---- Quarter planning ----
 // The planning flow walks four "quarters": Q1/Q3 are the starting lineups of
 // each half (plan.half1 / plan.half2) and Q2/Q4 are the lineups after the one
-// planned mid-half sub round. Q2/Q4 are stored as that sub round
-// (plan.half1Subs[0] / plan.half2Subs[0]), which is what the live game's
-// "Planned Subs" button loads, and are rebuilt from it when editing.
+// planned mid-half sub round. Q2/Q4 have their own lineup maps. The live
+// "Planned Subs" button loads the sub rounds derived from those maps.
 export const QUARTER_LABELS = {
   1: 'Q1 · Start of Half 1',
   2: 'Q2 · Mid Half 1',
@@ -76,13 +75,14 @@ export function deriveSubRound(prevMap, nextMap) {
     .map(([pos, inId]) => ({ inId, pos }));
 }
 
-// The saved lineup for quarter q, or null when its half has no starting lineup.
+// Older plans reconstruct their mid-half lineup from the saved sub round.
 export function quarterLineup(plan, q) {
   if (!plan) return null;
   const half = q <= 2 ? 1 : 2;
   const base = plan[`half${half}`];
-  if (!base) return null;
-  if (q % 2) return base;
+  if (q % 2) return base || null;
+  if (plan[`q${q}`]) return plan[`q${q}`];
+  if (!base || q > lastPlannedQuarter(plan)) return null;
   return effectiveLineupAt(base, plan[`half${half}Subs`] || [], 1);
 }
 

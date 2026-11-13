@@ -5,7 +5,6 @@ import { saveGamePlan } from './persistence.js';
 import {
   deriveSubRound,
   ensureActivePlan,
-  effectiveLineupAt,
   getActivePlan,
   lastPlannedQuarter,
   projectedSecondsByQuarter,
@@ -180,11 +179,12 @@ function buildPositionMapFromDraft() {
   return map;
 }
 
-// Stores the draft as quarter q of the plan. Q2/Q4 are saved as the sub round
-// from the preceding quarter, replacing any earlier rounds for that half.
+// Stores the quarter draft and derives the live sub round for its half.
 function saveQuarterDraft(q) {
   const posMap = buildPositionMapFromDraft();
   const plan = ensureActivePlan();
+  plan.q2 ??= quarterLineup(plan, 2) || {};
+  plan.q4 ??= quarterLineup(plan, 4) || {};
   plan.plannedThroughQuarter = Math.max(lastPlannedQuarter(plan), q);
   plan.gameNumber = targetGameNumber();
   plan.date = state.gameDate;
@@ -195,19 +195,15 @@ function saveQuarterDraft(q) {
   if (q % 2) {
     plan[`half${half}`] = posMap;
   } else {
-    const round = deriveSubRound(plan[`half${half}`], posMap);
-    if (round.length) plan[`half${half}Subs`] = [round];
-    else delete plan[`half${half}Subs`];
+    plan[`q${q}`] = posMap;
   }
+  const round = deriveSubRound(plan[`half${half}`], plan[`q${half * 2}`]);
+  if (round.length) plan[`half${half}Subs`] = [round];
+  else delete plan[`half${half}Subs`];
 }
 
-// Opens quarter q in the draft: its saved lineup if there is one, otherwise the
-// previous quarter's lineup for a mid-half quarter (so only the changes need
-// moving) or an empty field for the start of a half.
 function loadQuarterDraft(q) {
-  const plan = getActivePlan();
-  const saved = quarterLineup(plan, q);
-  fillDraftFromMap(q % 2 === 0 ? (saved || quarterLineup(plan, q - 1)) : saved);
+  fillDraftFromMap(quarterLineup(getActivePlan(), q));
 }
 
 // Called by the lineup screen's main button while pre-planning. Each quarter
@@ -435,33 +431,14 @@ export function renderLineup() {
   }
 }
 
-// The four planned quarters as { q, half, lineup }, using the on-screen draft for
-// the quarter being edited and the saved plan for the rest. Only quarters
-// already reached in planning contribute time; a saved unchanged mid-half
-// quarter uses its half's starting lineup.
+// The on-screen draft supplies the current quarter's projection.
 function plannedQuarters() {
   const plan = getActivePlan();
   const current = state.prePlanQuarter;
   const draft = buildPositionMapFromDraft();
-  const quarters = [];
-  [1, 2].forEach(half => {
-    const startQ = half * 2 - 1;
-    const savedBase = plan && plan[`half${half}`];
-    const base = current === startQ ? draft : savedBase;
-    if (!base) return;
-    quarters.push({ q: startQ, half, lineup: base });
-    quarters.push({
-      q: startQ + 1,
-      half,
-      // The mid-half quarter's lineup is always derived from the half's last
-      // SAVED starting lineup, never the in-progress draft of the other
-      // quarter being edited right now — otherwise an unsaved edit to Q1/Q3
-      // would leak into the Q2/Q4 projection before it's actually decided.
-      lineup: current === startQ + 1 ? draft : effectiveLineupAt(savedBase || draft, (plan && plan[`half${half}Subs`]) || [], 1),
-    });
-  });
-  const through = Math.max(current, lastPlannedQuarter(plan));
-  return quarters.filter(({ q }) => q <= through);
+  return [1, 2, 3, 4]
+    .map(q => ({ q, lineup: q === current ? draft : quarterLineup(plan, q) }))
+    .filter(({ lineup }) => lineup);
 }
 
 // Shows each player's projected time on the field across the planned quarters,

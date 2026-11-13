@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { closeModal, escHtml, localDateString, openModal, shortDisplayName } from './utils.js';
 import { saveGamePlan, saveRoster, saveSettings } from './persistence.js';
-import { MAX_PLAN_OFFSET, getActivePlan, nextGameNumber, targetGameNumber } from './plans.js';
+import { MAX_PLAN_OFFSET, getActivePlan, nextGameNumber, quarterLineup, targetGameNumber } from './plans.js';
 
 const shouldRestoreChecked = () => !!getActivePlan() || state.planOffset > 0;
 
@@ -443,8 +443,9 @@ export function updatePlanAheadStatus() {
   if (!planBtn || !status) return;
 
   const plan = getActivePlan();
-  const hasFull = !!(plan && plan.half1 && plan.half2);
-  const hasPartial = !!(plan && (plan.half1 || plan.half2) && !hasFull);
+  const assignedQuarters = [1, 2, 3, 4].filter(q => Object.keys(quarterLineup(plan, q) || {}).length);
+  const hasFull = assignedQuarters.length === 4;
+  const hasPartial = assignedQuarters.length > 0 && !hasFull;
 
   const nextBtn = document.getElementById('plan-next-btn');
   const backBtn = document.getElementById('plan-back-btn');
